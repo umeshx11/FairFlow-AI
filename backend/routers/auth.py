@@ -1,4 +1,5 @@
 import os
+from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated
@@ -27,12 +28,26 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
+def _normalize_secret(secret: str) -> str:
+    encoded = secret.encode("utf-8")
+    if len(encoded) <= 72:
+        return secret
+    return f"sha256${sha256(encoded).hexdigest()}"
+
+
+def _clean_email(email: str) -> str:
+    return email.strip().lower()
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(_normalize_secret(plain_password), hashed_password)
+    except ValueError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(_normalize_secret(password))
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
@@ -44,15 +59,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register_user(payload: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == payload.email).first()
+    normalized_email = _clean_email(payload.email)
+    existing_user = db.query(User).filter(User.email == normalized_email).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already registered.")
 
-    user = User(
-        email=payload.email,
-        hashed_password=get_password_hash(payload.password),
-        organization=payload.organization,
-    )
+    try:
+        user = User(
+            email=normalized_email,
+            hashed_password=get_password_hash(payload.password),
+            organization=payload.organization.strip(),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is invalid. Please try a different password.",
+        ) from exc
+
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -68,7 +91,8 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 def login_user(payload: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
+    normalized_email = _clean_email(payload.email)
+    user = db.query(User).filter(User.email == normalized_email).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password.")
 

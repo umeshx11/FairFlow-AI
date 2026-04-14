@@ -28,8 +28,22 @@ api.interceptors.response.use(
   }
 );
 
-const getErrorMessage = (error, fallbackMessage) =>
-  error?.response?.data?.detail || fallbackMessage || "Something went wrong.";
+const getErrorMessage = (error, fallbackMessage) => {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail
+      .map((item) => item?.msg || item?.message || String(item))
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (typeof error?.response?.data === "string" && error.response.data.trim()) {
+    return error.response.data;
+  }
+  return fallbackMessage || "Something went wrong.";
+};
 
 const performRequest = async (request, fallbackMessage) => {
   try {
