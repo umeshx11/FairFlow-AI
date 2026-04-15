@@ -41,7 +41,7 @@ function LoginPage() {
               Make hiring decisions visible, explainable, and fair.
             </h1>
             <p className="mt-5 max-w-lg text-base leading-7 text-slate-300">
-              FairLens AI combines fairness metrics, counterfactual analysis, SHAP explanations,
+              FairFlow AI combines fairness metrics, counterfactual analysis, SHAP explanations,
               and mitigation workflows so hiring teams can act on bias instead of guessing.
             </p>
             <div className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -64,7 +64,7 @@ function LoginPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-amber-dark">
               Welcome Back
             </p>
-            <h2 className="mt-4 text-3xl font-bold text-slate-900">Sign in to FairLens AI</h2>
+            <h2 className="mt-4 text-3xl font-bold text-slate-900">Sign in to FairFlow AI</h2>
             <p className="mt-3 text-sm leading-6 text-slate-500">
               Continue to your dashboards, audit history, and candidate fairness reviews.
             </p>

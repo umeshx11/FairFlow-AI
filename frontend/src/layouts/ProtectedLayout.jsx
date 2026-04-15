@@ -24,7 +24,7 @@ function ProtectedLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const userEmail = localStorage.getItem(USER_EMAIL_STORAGE_KEY) || "team@fairlens.ai";
+  const userEmail = localStorage.getItem(USER_EMAIL_STORAGE_KEY) || "team@fairflow.ai";
   const latestAuditId = localStorage.getItem(LAST_AUDIT_STORAGE_KEY);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ function ProtectedLayout() {
         <div className="inline-flex items-center rounded-full bg-amber/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-amber-light">
           Hiring Fairness
         </div>
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">FairLens AI</h1>
+        <h1 className="mt-4 text-2xl font-extrabold tracking-tight">FairFlow AI</h1>
         <p className="mt-2 text-sm text-slate-300">
           Audit, explain, and mitigate bias across hiring decisions.
         </p>

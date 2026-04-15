@@ -134,6 +134,36 @@ function Dashboard() {
     [audits]
   );
 
+  const heroStats = useMemo(
+    () => [
+      {
+        label: "Latest Dataset",
+        value: latestAudit?.dataset_name || "No dataset yet",
+        compact: true,
+        title: latestAudit?.dataset_name || "No dataset yet"
+      },
+      {
+        label: "Latest Score",
+        value: latestAudit ? `${Math.round(latestAudit.fairness_score)} / 100` : "0 / 100",
+        compact: false,
+        title: latestAudit ? `${Math.round(latestAudit.fairness_score)} / 100` : "0 / 100"
+      },
+      {
+        label: "Flagged Candidates",
+        value: latestAudit?.flagged_candidates ?? 0,
+        compact: false,
+        title: String(latestAudit?.flagged_candidates ?? 0)
+      },
+      {
+        label: "Mitigation",
+        value: latestAudit?.mitigation_applied ? "Applied" : "Pending",
+        compact: false,
+        title: latestAudit?.mitigation_applied ? "Applied" : "Pending"
+      }
+    ],
+    [latestAudit]
+  );
+
   if (loading) {
     return <LoadingSkeleton />;
   }
@@ -162,7 +192,7 @@ function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="section-card overflow-hidden bg-[linear-gradient(135deg,#0f172a_0%,#1e293b_55%,#334155_100%)] text-white">
-        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-light">Operations Pulse</p>
             <h1 className="mt-4 text-4xl font-extrabold leading-tight">
@@ -174,15 +204,17 @@ function Dashboard() {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              { label: "Latest Dataset", value: latestAudit.dataset_name },
-              { label: "Latest Score", value: `${Math.round(latestAudit.fairness_score)} / 100` },
-              { label: "Flagged Candidates", value: latestAudit.flagged_candidates },
-              { label: "Mitigation", value: latestAudit.mitigation_applied ? "Applied" : "Pending" }
-            ].map((item) => (
-              <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+            {heroStats.map((item) => (
+              <div key={item.label} className="min-w-0 rounded-3xl border border-white/10 bg-white/5 p-5">
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{item.label}</p>
-                <p className="mt-3 text-xl font-bold text-white">{item.value}</p>
+                <p
+                  className={`mt-3 font-bold text-white ${
+                    item.compact ? "truncate text-lg xl:text-xl" : "text-xl xl:text-2xl"
+                  }`}
+                  title={item.title}
+                >
+                  {item.value}
+                </p>
               </div>
             ))}
           </div>

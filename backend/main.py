@@ -8,7 +8,7 @@ from routers.candidates import router as candidates_router
 from routers.mitigation import router as mitigation_router
 
 
-app = FastAPI(title="FairLens AI", version="1.0.0")
+app = FastAPI(title="FairFlow AI", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,7 +26,7 @@ def on_startup():
 
 @app.get("/")
 def health_check():
-    return {"status": "FairLens AI running"}
+    return {"status": "FairFlow AI running"}
 
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])

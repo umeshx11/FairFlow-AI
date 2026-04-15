@@ -1,1 +1,1 @@
-"""Machine learning utilities for FairLens AI."""
+"""Machine learning utilities for FairFlow AI."""

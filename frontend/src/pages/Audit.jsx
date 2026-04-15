@@ -46,7 +46,7 @@ function Audit() {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-dark">New Audit</p>
             <h1 className="mt-4 text-4xl font-extrabold text-slate-900">Upload a hiring dataset for review</h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600">
-              FairLens AI will train a hiring decision model, compute fairness metrics, generate
+              FairFlow AI will train a hiring decision model, compute fairness metrics, generate
               candidate explanations, and flag protected-attribute counterfactual risks.
             </p>
           </div>

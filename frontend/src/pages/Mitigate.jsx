@@ -100,7 +100,7 @@ function Mitigate() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${audit?.dataset_name?.replace(".csv", "") || "fairlens"}_report.pdf`;
+      link.download = `${audit?.dataset_name?.replace(".csv", "") || "fairflow"}_report.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {

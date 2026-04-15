@@ -1,1 +1,1 @@
-"""FairLens AI backend package."""
+"""FairFlow AI backend package."""
