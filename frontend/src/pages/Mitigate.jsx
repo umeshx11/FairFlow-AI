@@ -358,7 +358,6 @@ function Mitigate() {
                     </p>
                   </div>
                   <div className="mt-4 space-y-3">
-<<<<<<< HEAD
                     {passingMetrics.length ? (
                       passingMetrics.map((metric) => (
                         <div key={metric.key} className="rounded-2xl bg-emerald-50 px-4 py-3">
@@ -369,17 +368,6 @@ function Mitigate() {
                         </div>
                       ))
                     ) : (
-=======
-                    {passingMetrics.map((key) => (
-                      <div key={key} className="rounded-2xl bg-emerald-50 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-900">{metricLabels[key]}</p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {Number(result.after_equalized_odds[key]).toFixed(4)} • threshold {metricThresholds[key]}
-                        </p>
-                      </div>
-                    ))}
-                    {passingMetrics.length === 0 && (
->>>>>>> 4afc429 (fix the mitigation summary rendering)
                       <p className="text-sm text-slate-500">No fairness checks are passing yet.</p>
                     )}
                   </div>
@@ -393,7 +381,6 @@ function Mitigate() {
                     </p>
                   </div>
                   <div className="mt-4 space-y-3">
-<<<<<<< HEAD
                     {failingMetrics.length ? (
                       failingMetrics.map((metric) => (
                         <div key={metric.key} className="rounded-2xl bg-rose-50 px-4 py-3">
@@ -404,17 +391,6 @@ function Mitigate() {
                         </div>
                       ))
                     ) : (
-=======
-                    {failingMetrics.map((key) => (
-                      <div key={key} className="rounded-2xl bg-rose-50 px-4 py-3">
-                        <p className="text-sm font-semibold text-slate-900">{metricLabels[key]}</p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {Number(result.after_equalized_odds[key]).toFixed(4)} • threshold {metricThresholds[key]}
-                        </p>
-                      </div>
-                    ))}
-                    {failingMetrics.length === 0 && (
->>>>>>> 4afc429 (fix the mitigation summary rendering)
                       <p className="text-sm text-slate-500">No remaining fairness gaps in the final metric set.</p>
                     )}
                   </div>
