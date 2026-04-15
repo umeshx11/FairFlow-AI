@@ -5,6 +5,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from agent.memory_store import store_memory
 from database import get_db
 from ml.bias_detector import run_bias_detection
 from ml.counterfactual import generate_counterfactual
@@ -146,6 +147,17 @@ async def upload_audit(
 
     db.add_all(candidates)
     db.flush()
+
+    store_memory(
+        db,
+        user_id=current_user.id,
+        audit=audit,
+        stage="upload",
+        metadata={
+            "bias_detected": bool(detection_result["bias_detected"]),
+            "candidate_count": len(candidates),
+        },
+    )
 
     audit.candidates = candidates
     response_payload = {

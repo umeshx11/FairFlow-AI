@@ -38,6 +38,8 @@ class Audit(Base):
 
     user = relationship("User", back_populates="audits")
     candidates = relationship("Candidate", back_populates="audit", cascade="all, delete-orphan")
+    memories = relationship("AuditMemory", back_populates="audit", cascade="all, delete-orphan")
+    certificates = relationship("AuditCertificate", back_populates="audit", cascade="all, delete-orphan")
 
 
 class Candidate(Base):
@@ -61,3 +63,32 @@ class Candidate(Base):
     previous_companies = Column(Text, nullable=True)
 
     audit = relationship("Audit", back_populates="candidates")
+
+
+class AuditMemory(Base):
+    __tablename__ = "audit_memories"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    audit_id = Column(UUID(as_uuid=True), ForeignKey("audits.id"), nullable=True, index=True)
+    stage = Column(String(64), nullable=False, index=True)
+    memory_text = Column(Text, nullable=False)
+    vector = Column(JSON, nullable=False, default=list)
+    memory_metadata = Column("metadata", JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    audit = relationship("Audit", back_populates="memories")
+
+
+class AuditCertificate(Base):
+    __tablename__ = "audit_certificates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    audit_id = Column(UUID(as_uuid=True), ForeignKey("audits.id"), nullable=False, index=True)
+    hash_algorithm = Column(String(32), nullable=False, default="sha256")
+    report_hash = Column(String(128), nullable=False, index=True)
+    epsilon = Column(Float, nullable=False, default=1.0)
+    payload = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    audit = relationship("Audit", back_populates="certificates")

@@ -109,6 +109,9 @@ function Candidates() {
               Search the current audit, filter bias flags, and open the slide-in review panel for
               SHAP explanations and protected-attribute counterfactual checks.
             </p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-indigo-700">
+              What-If Sandbox: Click Any Candidate to Simulate Counterfactual Outcomes
+            </div>
           </div>
           <div className="rounded-3xl bg-navy p-5 text-white shadow-glow">
             <p className="text-xs uppercase tracking-[0.18em] text-amber-light">Audit Scope</p>

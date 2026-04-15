@@ -162,7 +162,7 @@ def compute_fairness_metrics(encoded_features: pd.DataFrame, y_true: np.ndarray,
         predicted_dataset.labels = y_pred.astype(int).reshape(-1, 1)
 
         metric_dataset = BinaryLabelDatasetMetric(
-            original_dataset,
+            predicted_dataset,
             privileged_groups=[{PROTECTED_ATTRIBUTE: 1}],
             unprivileged_groups=[{PROTECTED_ATTRIBUTE: 0}],
         )
@@ -211,7 +211,9 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
 
     predictions = model.predict(X)
     probabilities = model.predict_proba(X)[:, 1]
-    metrics = compute_fairness_metrics(X, y.to_numpy(), predictions)
+    # Baseline fairness should reflect observed hiring decisions in the uploaded dataset.
+    observed_decisions = y.to_numpy()
+    metrics = compute_fairness_metrics(X, observed_decisions, observed_decisions)
 
     majority_values = {
         "gender": normalized_df["gender"].mode().iloc[0],

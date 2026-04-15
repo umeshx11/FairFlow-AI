@@ -28,7 +28,7 @@ function CounterfactualPanel({ result }) {
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-dark">Counterfactual</p>
-          <h3 className="mt-2 text-xl font-bold text-slate-900">Decision parity test</h3>
+          <h3 className="mt-2 text-xl font-bold text-slate-900">Decision parity test (What-if sandbox)</h3>
         </div>
         <CircleCheckBig className="h-6 w-6 text-navy" />
       </div>
@@ -49,7 +49,7 @@ function CounterfactualPanel({ result }) {
         <div className="mt-5 flex items-start gap-3 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4 text-amber-900">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <p className="text-sm leading-6">
-            Bias Detected: This candidate would be hired if {result.changed_attributes.join(", ")}.
+            Bias detected: the outcome flips under a protected-attribute change ({result.changed_attributes.join(", ")}).
           </p>
         </div>
       )}

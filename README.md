@@ -10,6 +10,10 @@ FairLens AI is a full-stack bias detection and mitigation platform for hiring sy
 - Candidate-level explainability with SHAP waterfall views and proxy-feature flags
 - Counterfactual analysis that tests protected-attribute sensitivity
 - Mitigation pipeline covering reweighing, prejudice remover, and equalized odds post-processing
+- Client-side WASM fairness precheck (C++ core) for zero-egress metric validation before upload
+- LangGraph-based governance auditor agent with historical memory retrieval
+- Deep inspection API using DoWhy causal proxy discovery + TCAV-style concept translation
+- Differentially private report export with immutable SHA-256 fairness certificate
 - Downloadable PDF bias audit reports
 - Docker and docker-compose support for local orchestration
 
@@ -18,6 +22,7 @@ FairLens AI is a full-stack bias detection and mitigation platform for hiring sy
 - Node.js 18+
 - Python 3.10+
 - PostgreSQL 15+
+- Emscripten (`em++`) for compiling the frontend WASM core (optional but recommended)
 - Docker and Docker Compose
 
 ## Project Structure
@@ -38,7 +43,7 @@ FairLens AI/
 
 ```bash
 git clone <your-repo-url>
-cd "FairFlow AI"
+cd FairFlow-AI
 ```
 
 2. Create the root environment file for Docker Compose.
@@ -64,8 +69,16 @@ docker-compose up --build
 ```bash
 cd frontend
 npm install
+npm run build:wasm
 npm start
 ```
+
+`npm run build:wasm` generates `frontend/public/wasm/ethos_core.js` and `frontend/public/wasm/ethos_core.wasm`.  
+If this step is skipped, the app automatically falls back to a JS runtime for the local precheck.
+
+WASM technical notes: [`docs/ethos-wasm-core.md`](/Users/akshatagrawal/Desktop/FairFlow-AI/docs/ethos-wasm-core.md)
+Ethos architecture notes: [`docs/ethos-architecture.md`](/Users/akshatagrawal/Desktop/FairFlow-AI/docs/ethos-architecture.md)
+Compliance mapping: [`docs/ethos-compliance.md`](/Users/akshatagrawal/Desktop/FairFlow-AI/docs/ethos-compliance.md)
 
 6. If you want to run the backend directly instead of the containerized backend, create a virtual environment and install dependencies.
 
@@ -100,7 +113,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 
 ## Sample Dataset
 
-The repository includes [sample_candidates.csv](/Users/umesh/Documents/FairFlow AI/sample_candidates.csv) with 200 seeded records containing intentional hiring bias patterns across gender and ethnicity so you can validate the full workflow immediately.
+The repository includes [sample_candidates.csv](/Users/akshatagrawal/Desktop/FairFlow-AI/sample_candidates.csv) with 200 seeded records containing intentional hiring bias patterns across gender and ethnicity so you can validate the full workflow immediately.
 
 ## API Endpoints
 
@@ -190,9 +203,30 @@ curl -X POST http://localhost:8000/mitigate/<AUDIT_ID> \
 ### Download PDF Report
 
 ```bash
-curl http://localhost:8000/report/<AUDIT_ID> \
+curl "http://localhost:8000/report/<AUDIT_ID>?epsilon=1.0" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   --output fairlens_report.pdf
+```
+
+### Run Governance Auditor Agent
+
+```bash
+curl -X POST http://localhost:8000/governance/auditor/<AUDIT_ID> \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+### Run Deep Inspection (Causal + TCAV)
+
+```bash
+curl -X POST http://localhost:8000/inspection/deep/<AUDIT_ID> \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+### Get Latest Fairness Certificate
+
+```bash
+curl http://localhost:8000/certificate/<AUDIT_ID> \
+  -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
 ## Sample Bias Report JSON

@@ -1,0 +1,2 @@
+"""Ethos governance agent package."""
+

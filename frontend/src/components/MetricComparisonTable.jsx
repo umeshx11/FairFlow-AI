@@ -52,7 +52,7 @@ function MetricComparisonTable({ data }) {
           <h3 className="mt-2 text-2xl font-bold text-slate-900">Before and after fairness metrics</h3>
         </div>
         <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600">
-          Prejudice Remover tracked below the chart
+          80% rule reference line (applies to Disparate Impact)
         </div>
       </div>
 
@@ -64,19 +64,24 @@ function MetricComparisonTable({ data }) {
             <YAxis tick={{ fill: "#475569", fontSize: 12 }} />
             <Tooltip />
             <Legend />
-            <ReferenceLine y={0.8} stroke="#f59e0b" strokeDasharray="6 6" />
-            <Bar dataKey="original" name="Original" fill="#ef4444" radius={[10, 10, 0, 0]} isAnimationActive />
+            <ReferenceLine
+              y={0.8}
+              stroke="#b45309"
+              strokeDasharray="6 6"
+              label={{ value: "80% Rule", fill: "#b45309", position: "insideTopRight", fontSize: 11 }}
+            />
+            <Bar dataKey="original" name="Original Baseline" fill="#1e3a8a" radius={[10, 10, 0, 0]} isAnimationActive />
             <Bar
               dataKey="reweighing"
               name="After Reweighing"
-              fill="#f59e0b"
+              fill="#0284c7"
               radius={[10, 10, 0, 0]}
               isAnimationActive
             />
             <Bar
               dataKey="equalizedOdds"
               name="After Equalized Odds"
-              fill="#16a34a"
+              fill="#7c3aed"
               radius={[10, 10, 0, 0]}
               isAnimationActive
             />

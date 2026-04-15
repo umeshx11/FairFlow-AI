@@ -20,6 +20,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "build:wasm": "bash ./scripts/build-wasm.sh",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

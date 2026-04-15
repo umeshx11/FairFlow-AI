@@ -6,8 +6,11 @@ export const USER_EMAIL_STORAGE_KEY = "fairlens_user_email";
 export const USER_ID_STORAGE_KEY = "fairlens_user_id";
 export const LAST_AUDIT_STORAGE_KEY = "fairlens_last_audit_id";
 
+const runtimeHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
+const apiHost = runtimeHost === "127.0.0.1" ? "127.0.0.1" : "localhost";
+
 const api = axios.create({
-  baseURL: "http://localhost:8000"
+  baseURL: `http://${apiHost}:8000`
 });
 
 api.interceptors.request.use((config) => {
@@ -109,6 +112,12 @@ export const getCounterfactual = async (candidateId) =>
 
 export const mitigateAudit = async (auditId) =>
   performRequest(() => api.post(`/mitigate/${auditId}`), "Mitigation analysis failed.");
+
+export const runGovernanceAuditor = async (auditId) =>
+  performRequest(
+    () => api.post(`/governance/auditor/${auditId}`),
+    "Could not generate Ethos agent recommendation."
+  );
 
 export const downloadReport = async (auditId) => {
   try {

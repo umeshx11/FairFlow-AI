@@ -100,3 +100,56 @@ class MitigationResponse(BaseModel):
     fairness_score_before: float
     fairness_score_after: float
     mitigated_candidates: int
+
+
+class MemoryHit(BaseModel):
+    audit_id: UUID | None = None
+    stage: str
+    score: float
+    memory_text: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AuditorDecisionResponse(BaseModel):
+    audit_id: UUID
+    state: str
+    recommendation: str
+    rationale: str
+    actions: list[str] = Field(default_factory=list)
+    recalled_memories: list[MemoryHit] = Field(default_factory=list)
+
+
+class ProxyFinding(BaseModel):
+    feature: str
+    proxy_strength: float
+    treatment_effect: float
+    risk_score: float
+    is_proxy: bool
+    explanation: str
+
+
+class TCAVConcept(BaseModel):
+    concept: str
+    tcav_score: float
+    sensitivity: float
+    prevalence: float
+    direction: str
+    summary: str
+
+
+class DeepInspectionResponse(BaseModel):
+    audit_id: UUID
+    protected_attribute: str
+    dag_edges: list[dict[str, str]] = Field(default_factory=list)
+    proxy_findings: list[ProxyFinding] = Field(default_factory=list)
+    tcav_concepts: list[TCAVConcept] = Field(default_factory=list)
+    engine: str
+
+
+class CertificateResponse(BaseModel):
+    audit_id: UUID
+    hash_algorithm: str
+    report_hash: str
+    epsilon: float
+    payload: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime

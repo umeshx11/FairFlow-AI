@@ -1,10 +1,14 @@
-import { CheckCircle2, ChevronRight, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronRight, LockKeyhole, Sparkles } from "lucide-react";
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 import { LAST_AUDIT_STORAGE_KEY, uploadAudit } from "../api/fairlensApi";
 import CSVUploader from "../components/CSVUploader";
 import FairnessReportCard from "../components/FairnessReportCard";
+import LocalWasmPrecheckCard from "../components/LocalWasmPrecheckCard";
+import { buildEthosInputFromCsvText } from "../wasm/csvAuditInput";
+import { runEthosPipeline } from "../wasm/ethosEngine";
 
 const steps = [
   { id: 1, label: "Upload" },
@@ -17,10 +21,25 @@ function Audit() {
   const [report, setReport] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
+  const [localPrecheck, setLocalPrecheck] = useState(null);
+  const [proxyColumn, setProxyColumn] = useState("years_experience");
 
   const handleUpload = async (file) => {
     setUploading(true);
     setActiveStep(2);
+
+    try {
+      const localInput = buildEthosInputFromCsvText(await file.text(), {
+        proxyColumn: "years_experience"
+      });
+      const localResult = await runEthosPipeline(localInput);
+      setLocalPrecheck(localResult);
+      setProxyColumn(localInput.proxyColumn);
+    } catch (error) {
+      setLocalPrecheck(null);
+      setProxyColumn("years_experience");
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -29,6 +48,9 @@ function Audit() {
       setReport(response);
       setActiveStep(3);
       localStorage.setItem(LAST_AUDIT_STORAGE_KEY, response.audit.id);
+      toast.success(
+        `Upload completed. ${response?.summary?.total_candidates ?? 0} candidates analyzed.`
+      );
       return response;
     } catch (error) {
       setActiveStep(1);
@@ -49,6 +71,10 @@ function Audit() {
               FairLens AI will train a hiring decision model, compute fairness metrics, generate
               candidate explanations, and flag protected-attribute counterfactual risks.
             </p>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+              <LockKeyhole className="h-4 w-4" />
+              Zero Data Egress: Local Browser Fairness Precheck
+            </div>
           </div>
           <div className="rounded-3xl bg-navy p-5 text-white shadow-glow">
             <div className="flex items-center gap-3">
@@ -89,6 +115,7 @@ function Audit() {
       </div>
 
       <CSVUploader onUpload={handleUpload} uploading={uploading} />
+      <LocalWasmPrecheckCard result={localPrecheck} proxyColumn={proxyColumn} />
 
       {!report && (
         <div className="section-card text-center">

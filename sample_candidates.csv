@@ -1,21 +1,21 @@
 name,gender,age,ethnicity,years_experience,education_level,skills,previous_companies,hired
 Devon Carter,Male,36,Black,7.1,Master,Communication | Risk Modeling | TensorFlow,Northbridge Labs,1
-Natalie Walker,Female,48,White,12.3,Bachelor,AWS | JavaScript | Python,Verity Analytics,1
-Charlotte Anderson,Female,27,White,0.7,Bachelor,AWS | Experimentation | SQL,Clearwater AI,1
+Natalie Walker,Female,48,White,12.3,Bachelor,AWS | JavaScript | Python,Verity Analytics,0
+Charlotte Anderson,Female,27,White,0.7,Bachelor,AWS | Experimentation | SQL,Clearwater AI,0
 Charlotte Cooper,Female,34,White,7.1,Master,Docker | Recruiting Analytics | SQL,OakRiver Consulting,0
 Karan Tanaka,Male,45,Asian,7.7,Master,Data Analysis | Risk Modeling | TensorFlow,Cobalt Data,1
-Natalie Walker,Female,42,White,11.9,Master,React | Recruiting Analytics | SQL,Clearwater AI | Summit Works,1
-Elena Hernandez,Female,53,Hispanic,8.9,Bachelor,AWS | NLP | Recruiting Analytics,Verity Analytics | Clearwater AI,1
+Natalie Walker,Female,42,White,11.9,Master,React | Recruiting Analytics | SQL,Clearwater AI | Summit Works,0
+Elena Hernandez,Female,53,Hispanic,8.9,Bachelor,AWS | NLP | Recruiting Analytics,Verity Analytics | Clearwater AI,0
 Miguel Martinez,Male,25,Hispanic,5.2,Master,Communication | Data Analysis | NLP,Clearwater AI,0
-Adriana Garcia,Female,29,Hispanic,2.0,Bachelor,Docker | Kubernetes | PyTorch,Cobalt Data | Lighthouse Health,1
+Adriana Garcia,Female,29,Hispanic,2.0,Bachelor,Docker | Kubernetes | PyTorch,Cobalt Data | Lighthouse Health,0
 Kiara Harris,Female,54,Black,10.9,PhD,Docker | Leadership | Prompt Engineering,Acorn Energy,0
-Kavya Chen,Female,42,Asian,7.6,Bachelor,Docker | Recruiting Analytics | SQL,Apex Insight,1
+Kavya Chen,Female,42,Asian,7.6,Bachelor,Docker | Recruiting Analytics | SQL,Apex Insight,0
 Sanjay Tanaka,Male,30,Asian,3.9,Master,AWS | Data Analysis | Risk Modeling,Meridian Cloud | Beacon Talent,1
-Sakura Watanabe,Female,55,Asian,12.4,High School,JavaScript | Python | Risk Modeling,OakRiver Consulting,1
+Sakura Watanabe,Female,55,Asian,12.4,High School,JavaScript | Python | Risk Modeling,OakRiver Consulting,0
 Jamal Jackson,Male,43,Black,9.8,High School,AWS | Recruiting Analytics | Tableau,Beacon Talent,1
 Mariana Hernandez,Female,52,Hispanic,13.6,High School,Communication | MLOps | React,Lighthouse Health | Helio Systems,0
 Rafael Torres,Male,28,Hispanic,1.4,Bachelor,Experimentation | Leadership | Risk Modeling,Verity Analytics,1
-Aisha Watanabe,Female,28,Asian,12.3,Master,Data Analysis | Recruiting Analytics | TensorFlow,Pioneer Software | Beacon Talent,1
+Aisha Watanabe,Female,28,Asian,12.3,Master,Data Analysis | Recruiting Analytics | TensorFlow,Pioneer Software | Beacon Talent,0
 Yuki Chen,Male,46,Asian,13.6,Bachelor,Communication | Docker | Experimentation,BrightPath Retail | Meridian Cloud,1
 Adriana Garcia,Female,42,Hispanic,12.0,Bachelor,Data Analysis | Prompt Engineering | SQL,Cobalt Data,1
 Hannah Anderson,Female,37,White,7.9,Bachelor,Communication | SQL | TensorFlow,Summit Works | Meridian Cloud,0

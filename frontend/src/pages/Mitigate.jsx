@@ -1,5 +1,6 @@
 import { Dialog, Transition } from "@headlessui/react";
 import {
+  Bot,
   ArrowRightLeft,
   Download,
   FileText,
@@ -14,7 +15,8 @@ import {
   LAST_AUDIT_STORAGE_KEY,
   downloadReport,
   getAudit,
-  mitigateAudit
+  mitigateAudit,
+  runGovernanceAuditor
 } from "../api/fairlensApi";
 import MetricComparisonTable from "../components/MetricComparisonTable";
 import Spinner from "../components/Spinner";
@@ -59,6 +61,8 @@ function Mitigate() {
   const [loadingAudit, setLoadingAudit] = useState(true);
   const [running, setRunning] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [agentDecision, setAgentDecision] = useState(null);
+  const [loadingAgentDecision, setLoadingAgentDecision] = useState(false);
 
   useEffect(() => {
     if (auditId) {
@@ -87,6 +91,15 @@ function Mitigate() {
     try {
       const response = await mitigateAudit(auditId);
       setResult(response);
+      setLoadingAgentDecision(true);
+      try {
+        const recommendation = await runGovernanceAuditor(auditId);
+        setAgentDecision(recommendation);
+      } catch (error) {
+        setAgentDecision(null);
+      } finally {
+        setLoadingAgentDecision(false);
+      }
     } catch (error) {
       return;
     } finally {
@@ -108,11 +121,11 @@ function Mitigate() {
     }
   };
 
-  const fairnessLift = useMemo(() => {
+  const fairnessLiftPoints = useMemo(() => {
     if (!result) {
       return 0;
     }
-    return Math.round(result.fairness_score_after - result.fairness_score_before);
+    return Number((result.fairness_score_after - result.fairness_score_before).toFixed(1));
   }, [result]);
 
   if (loadingAudit) {
@@ -172,6 +185,32 @@ function Mitigate() {
 
       {result && (
         <>
+          <div className="section-card border border-indigo-200 bg-indigo-50/60">
+            <div className="flex items-start gap-4">
+              <div className="rounded-2xl bg-indigo-100 p-3 text-indigo-700">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-700">
+                  Ethos Agent Recommendation
+                </p>
+                {loadingAgentDecision ? (
+                  <p className="text-sm text-slate-600">Analyzing historical audits and policy memories...</p>
+                ) : (
+                  <>
+                    <p className="text-base font-semibold text-slate-900">
+                      {agentDecision?.recommendation ||
+                        "Disparate Impact is below the 0.8 threshold. Recommend applying Equalized Odds post-processing and reviewing changed outcomes."}
+                    </p>
+                    {agentDecision?.rationale && (
+                      <p className="text-sm leading-7 text-slate-600">{agentDecision.rationale}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
           <MetricComparisonTable data={result} />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -190,11 +229,13 @@ function Mitigate() {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-dark">Impact Summary</p>
                 <h3 className="mt-2 text-2xl font-bold text-slate-900">
-                  Mitigation improved fairness score by {fairnessLift}%
+                  Mitigation shifted fairness score by {Math.abs(fairnessLiftPoints)} points
                 </h3>
                 <p className="mt-3 text-sm leading-7 text-slate-600">
-                  Candidate decisions updated for {result.mitigated_candidates} records. You can now
-                  export a stakeholder-ready PDF or confirm the recalculated rankings.
+                  {result.mitigated_candidates > 0
+                    ? `Model recommendations updated for ${result.mitigated_candidates} records.`
+                    : "No recommendation flips were required for this run."}{" "}
+                  You can now export a stakeholder-ready PDF or confirm the recalculated rankings.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
