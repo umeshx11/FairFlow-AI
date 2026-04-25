@@ -176,6 +176,15 @@ function ProtectedLayout() {
               <Outlet />
             </div>
           </main>
+
+          <footer className="border-t border-slate-200 bg-white/90 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-7xl flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+              <p>FairLens AI • Glass Box Fairness Governance</p>
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 font-semibold uppercase tracking-[0.14em] text-indigo-700">
+                Powered by IndiCASA
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
     </div>

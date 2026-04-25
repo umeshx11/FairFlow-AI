@@ -26,6 +26,15 @@ except Exception:
 LABEL_COLUMN = "hired"
 PROTECTED_ATTRIBUTE = "gender"
 NON_FEATURE_COLUMNS = {"name"}
+COUNTERFACTUAL_PROTECTED_ATTRIBUTES = [
+    "gender",
+    "ethnicity",
+    "caste",
+    "religion",
+    "disability_status",
+    "region",
+    "dialect",
+]
 
 
 def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -215,10 +224,10 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
     observed_decisions = y.to_numpy()
     metrics = compute_fairness_metrics(X, observed_decisions, observed_decisions)
 
-    majority_values = {
-        "gender": normalized_df["gender"].mode().iloc[0],
-        "ethnicity": normalized_df["ethnicity"].mode().iloc[0] if "ethnicity" in normalized_df.columns else "",
-    }
+    majority_values: dict[str, Any] = {}
+    for attribute in COUNTERFACTUAL_PROTECTED_ATTRIBUTES:
+        if attribute in normalized_df.columns and not normalized_df[attribute].dropna().empty:
+            majority_values[attribute] = normalized_df[attribute].mode().iloc[0]
 
     return {
         **metrics,

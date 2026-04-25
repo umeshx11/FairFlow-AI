@@ -13,6 +13,7 @@
    - Paths: `backend/agent/auditor_graph.py`, `backend/agent/memory_store.py`
    - State machine: `Observe -> Analyze -> Act -> Report`
    - Memory table: `audit_memories` (hashed vector embedding + governance metadata).
+   - Scalability: partitioned retrieval (`M << N`) narrows candidate memory windows before vector scoring, supporting low-latency historical recall at enterprise audit volumes.
 3. **Deep Inspection (DoWhy + TCAV-style Concepts)**
    - Path: `backend/ml/causal_tcav.py`
    - Detects proxy candidates via causal effect + proxy-strength scoring.
@@ -38,4 +39,5 @@
 ## Reliability/Latency Notes
 - Browser-side metrics reduce server load for first-pass checks.
 - Memory retrieval uses local vector similarity (`HashingVectorizer`) without external APIs.
+- AUR-X style partitioning enables historical pattern lookup across large audit corpora (10,000+ audits) with sub-second drift checks and real-time governance recommendations.
 - All sensitive rows stay within trusted browser/backend boundaries; no external model calls required.

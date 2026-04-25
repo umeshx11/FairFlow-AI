@@ -11,6 +11,9 @@ def _encode_candidate(candidate_df: pd.DataFrame, encoders: dict[str, Any]) -> p
         if column not in encoded.columns:
             continue
         encoded[column] = encoded[column].astype(str)
+        classes = set(getattr(encoder, "classes_", []))
+        fallback = next(iter(classes)) if classes else "Unknown"
+        encoded[column] = encoded[column].apply(lambda value: value if value in classes else fallback)
         encoded[column] = encoder.transform(encoded[column])
     return encoded
 
@@ -29,7 +32,7 @@ def generate_counterfactual(model, candidate_row, encoders, majority_values: dic
     counterfactual_features = dict(candidate_features)
 
     changed_attributes: list[str] = []
-    for attribute in ("gender", "ethnicity"):
+    for attribute in ("gender", "ethnicity", "caste", "religion", "disability_status", "region", "dialect"):
         if attribute in counterfactual_features and attribute in majority_values:
             if counterfactual_features[attribute] != majority_values[attribute]:
                 counterfactual_features[attribute] = majority_values[attribute]

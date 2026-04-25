@@ -14,6 +14,10 @@ Run fairness metric computation fully inside the browser so candidate-level audi
 ## C++ Export Contract
 `int ethos_run(const float* y_true, const float* y_pred, const int32_t* protected_attr, const float* proxy_feature, int32_t count, float* out_metrics)`
 
+`int ethos_sha256_hex(const uint8_t* input, int32_t length, char* out_hex, int32_t out_capacity)`
+
+`int ethos_hash_pii_token(const uint8_t* input, int32_t length, char* out_token, int32_t out_capacity)`
+
 `out_metrics` layout:
 - `0`: disparate impact
 - `1`: equalized odds (absolute)
@@ -25,6 +29,11 @@ Run fairness metric computation fully inside the browser so candidate-level audi
 - `7`: overall positive rate
 - `8`: fairness score (0-100 from threshold checks)
 - `9`: sample count
+
+PII token output contract:
+- `ethos_hash_pii_token` writes a null-terminated token in the format `hash_<20 hex chars>`.
+- Required output capacity: `26` bytes (`25` chars + null terminator).
+- Used by `frontend/src/wasm/privacyShieldWasm.js` for in-browser CSV pseudonymization.
 
 ## Build
 ```bash
@@ -44,5 +53,6 @@ Artifacts:
 
 ## Privacy Boundary
 - Precheck is computed in-browser only.
+- PII field hashing (`name`, `email`, `phone`) is executed via WASM SHA-256 bindings before upload.
 - No CSV row-level data is sent to third-party services during metric computation.
 - Server upload remains optional workflow continuation, not required for precheck.

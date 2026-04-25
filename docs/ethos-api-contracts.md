@@ -72,3 +72,33 @@ Response:
   "created_at": "2026-04-15T..."
 }
 ```
+
+## Multimodal Reasoning Logs
+`POST /audit/upload-multimodal`
+
+Response:
+```json
+{
+  "analysis_engine": "gemini-adapter-fallback",
+  "media_type": "video",
+  "file_name": "interview_round2.mp4",
+  "risk_score": 76,
+  "flagged_concerns": [
+    {
+      "type": "socioeconomic_proxy_bias",
+      "severity": "high",
+      "detail": "Interview context may over-weight non-job-relevant environment cues."
+    }
+  ],
+  "reasoning_log": [
+    "Bias Detected: Socioeconomic Proxy. The candidate background contains non-standard office markers.",
+    "Culture-fit score dropped near timestamp 02:14 while technical answer quality remained stable.",
+    "Recommendation: ignore environment-quality proxies and route to human reviewer."
+  ],
+  "recommended_actions": [
+    "Run transcript-level fairness review for protected-attribute references.",
+    "Ignore background-quality features in ranking decisions.",
+    "Require second-reviewer sign-off for high-risk multimodal artifacts."
+  ]
+}
+```

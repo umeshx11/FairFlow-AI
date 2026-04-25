@@ -89,6 +89,17 @@ export const uploadAudit = async (formData, config = {}) =>
     "Audit upload failed."
   );
 
+export const uploadMultimodalAudit = async (formData) =>
+  performRequest(
+    () =>
+      api.post("/audit/upload-multimodal", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      }),
+    "Multimodal upload failed."
+  );
+
 export const getAudit = async (id) =>
   performRequest(() => api.get(`/audit/${id}`), "Could not load audit.");
 
@@ -113,10 +124,22 @@ export const getCounterfactual = async (candidateId) =>
 export const mitigateAudit = async (auditId) =>
   performRequest(() => api.post(`/mitigate/${auditId}`), "Mitigation analysis failed.");
 
+export const runSyntheticPatch = async (auditId, targetAttribute = "gender") =>
+  performRequest(
+    () => api.post(`/mitigate/synthetic/${auditId}`, null, { params: { target_attribute: targetAttribute } }),
+    "Synthetic patch generation failed."
+  );
+
 export const runGovernanceAuditor = async (auditId) =>
   performRequest(
     () => api.post(`/governance/auditor/${auditId}`),
     "Could not generate Ethos agent recommendation."
+  );
+
+export const runDeepInspection = async (auditId) =>
+  performRequest(
+    () => api.post(`/inspection/deep/${auditId}`),
+    "Could not run deep inspection."
   );
 
 export const downloadReport = async (auditId) => {
