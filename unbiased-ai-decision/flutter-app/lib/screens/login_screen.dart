@@ -372,8 +372,7 @@ class _LoginScreenState extends State<LoginScreen>
                                           CrossAxisAlignment.start,
                                       children: [
                                         const Padding(
-                                          padding:
-                                              EdgeInsets.only(top: 1.5),
+                                          padding: EdgeInsets.only(top: 1.5),
                                           child: Icon(
                                             Icons.verified_user_outlined,
                                             size: 18,
@@ -385,9 +384,9 @@ class _LoginScreenState extends State<LoginScreen>
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
-                                            'No data stored. No sign-up needed.',
-                                            style: textTheme.bodyMedium
-                                                ?.copyWith(
+                                            'Firebase guest demo. No sign-up needed.',
+                                            style:
+                                                textTheme.bodyMedium?.copyWith(
                                               color: isDark
                                                   ? Colors.white
                                                       .withOpacity(0.82)
@@ -420,8 +419,8 @@ class _LoginScreenState extends State<LoginScreen>
                                               vertical: 10,
                                             ),
                                             decoration: BoxDecoration(
-                                              color: AppColors.unBlue
-                                                  .withOpacity(
+                                              color:
+                                                  AppColors.unBlue.withOpacity(
                                                 isDark ? 0.24 : 0.12,
                                               ),
                                               borderRadius:
@@ -448,8 +447,7 @@ class _LoginScreenState extends State<LoginScreen>
                                                     color: isDark
                                                         ? Colors.white
                                                         : AppColors.unBlue,
-                                                    fontWeight:
-                                                        FontWeight.w700,
+                                                    fontWeight: FontWeight.w700,
                                                   ),
                                                 ),
                                               ],

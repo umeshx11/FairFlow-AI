@@ -259,7 +259,7 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
           const SizedBox(height: 14),
           Text(
-            'Your report will include a bias score, plain-English AI summary, feature impact view, and SDG 10.3 alignment.',
+            'Your report will include a bias score, Gemini guidance, feature impact, causal graph, and SDG target mapping.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
@@ -331,7 +331,9 @@ class _AuditStatusTimeline extends StatelessWidget {
                   Text(
                     status,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: status == 'failed' ? AppColors.danger : AppColors.unBlue,
+                      color: status == 'failed'
+                          ? AppColors.danger
+                          : AppColors.unBlue,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -386,7 +388,8 @@ class _StageChip extends StatelessWidget {
         label,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: color,
-              fontWeight: active || complete ? FontWeight.w800 : FontWeight.w600,
+              fontWeight:
+                  active || complete ? FontWeight.w800 : FontWeight.w600,
             ),
       ),
     );
@@ -533,8 +536,7 @@ class _DashedUploadZone extends StatelessWidget {
                                 Text(
                                   fileMeta!,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant,
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                             ],

@@ -12,23 +12,28 @@ AI fairness auditing for automated decisions in hiring, lending, and care delive
 ![SHAP](https://img.shields.io/badge/SHAP-Explainability-EF4444?style=for-the-badge)
 ![Causal AI](https://img.shields.io/badge/Causal%20AI-Enabled-111827?style=for-the-badge)
 
-## SDG Target 10.3
+## SDG Targets
 
 Primary alignment: **SDG 10 - Reduced Inequalities**  
 Target 10.3: **Ensure equal opportunity and reduce inequalities of outcome, including by eliminating discriminatory practices**
+
+Additional live mappings returned by the backend:
+
+- **SDG 8.5** - Equal access to productive employment and equal pay for equal work
+- **SDG 16.b** - Non-discriminatory laws, policies, and enforcement
 
 ## Evidence Checklist
 
 - Google tech integration: Firebase Auth, Firestore, Vertex AI, and Gemini integration are implemented in `backend/` and `flutter-app/`
 - Flutter mobile app: the product is a Flutter mobile/web app in [`flutter-app/`](flutter-app)
-- Demo-ready guest mode: the app supports Firebase anonymous sign-in first and now falls back to a local guest session plus local sample audit if demo Firebase services are unavailable
+- Demo-ready guest mode: the app requires Firebase anonymous sign-in and the seeded Firestore sample audit, so judges stay on the Google-backed path
 - 3 documented user tests: see [`user-tests/test_1_recruiter_tool.md`](user-tests/test_1_recruiter_tool.md), [`user-tests/test_2_loan_model.md`](user-tests/test_2_loan_model.md), and [`user-tests/test_3_medical_triage.md`](user-tests/test_3_medical_triage.md)
-- SDG target cited by number: SDG 10.3 is surfaced in the UI, backend payloads, and documentation
+- SDG targets cited by number: SDG 10.3, SDG 8.5, and SDG 16.b are surfaced in the UI, backend payloads, and documentation
 - Community impact story: see [`IMPACT_STORY.md`](IMPACT_STORY.md)
 - Problem statement video: the script is included in [`video_script.md`](video_script.md)
 - Docker reproducibility: see [`docker/docker-compose.yml`](docker/docker-compose.yml)
 - Deployment scaffold: Cloud Run deployment commands are included below
-- Technical depth: SHAP, fairness metrics, causal graph generation, and Gemini plain-language summaries are all present
+- Technical depth: Vertex AI endpoint prediction support, SHAP, fairness metrics, causal graph visualization, live Firestore status updates, and Gemini remediation guidance are all present
 
 ## Demo Modes
 
@@ -40,8 +45,9 @@ Target 10.3: **Ensure equal opportunity and reduce inequalities of outcome, incl
 
 Local demo behavior:
 
-- If Firebase and Firestore are configured, guest/demo mode uses Firebase anonymous auth plus Firestore sample data
-- If Firebase demo services are unavailable, the app can still enter guest mode and the backend falls back to a local file-backed audit store for the sample audit and new uploads
+- Guest/demo mode uses Firebase anonymous auth plus Firestore sample data
+- Backend audit processing writes live Firestore stages: `uploading`, `uploaded`, `preparing_features`, `calling_vertex_endpoint`, `generating_shap`, `generating_gemini`, and `complete`
+- If Firebase or Firestore is not configured, guest mode fails closed instead of showing a local non-Google demo path
 
 ### Deployed demo
 
@@ -50,9 +56,9 @@ This repository includes deployment scaffolding, but it does **not** ship with a
 ## Why this project stands out
 
 - Mobile-first accessibility through Flutter for phone, tablet, and web use
-- Plain-language Gemini explanations for non-technical decision-makers
-- SHAP feature impact and causal pathway analysis for technical reviewers
-- SDG 10.3 framing for impact and policy alignment
+- Gemini explanations, remediation recommendations, legal-risk summaries, and audit Q&A
+- SHAP feature impact and causal graph visualization for technical reviewers
+- SDG 10.3, 8.5, and 16.b mappings tied to concrete fairness thresholds
 - User-test evidence across hiring, lending, and medical triage workflows
 
 ## Architecture
@@ -73,9 +79,9 @@ This repository includes deployment scaffolding, but it does **not** ship with a
      |                                 |
      v                                 v
 +----+----------------+       +--------+---------+
-| Gemini 1.5 Flash    |       | Vertex AI Job    |
-| plain-language      |       | orchestration    |
-| explanation         |       | + local analyzer |
+| Gemini 1.5 Flash    |       | Vertex AI        |
+| explanation,        |       | endpoint predict |
+| remediation, Q&A    |       | + explanations   |
 +----+----------------+       +--------+---------+
      |                                 |
      +---------------+-----------------+
@@ -83,8 +89,8 @@ This repository includes deployment scaffolding, but it does **not** ship with a
                      v
               +------+------+ 
               | Firestore   |
-              | or local    |
-              | demo store  |
+              | audit docs  |
+              | live stages |
               +-------------+
 ```
 
@@ -106,7 +112,7 @@ unbiased-ai-decision/
 
 1. Clone the repository.
 2. Copy `.env.example` to `.env`.
-3. Fill in Firebase, Vertex AI, and Gemini values if you want the full Google-backed experience.
+3. Fill in Firebase, Vertex AI endpoint, and Gemini values.
 4. Start the app:
 
 ```bash
@@ -118,13 +124,13 @@ docker compose up --build
 6. Open the backend health endpoint at `http://localhost:8080/health` to confirm service status.
 7. Use `Try as Guest - no sign-up needed` from the login screen.
 
-Optional sample seeding:
+Required sample seeding for guest demos:
 
 ```bash
 python backend/seed_sample_audit.py
 ```
 
-The sample seed is useful for Firestore-backed demos. The local fallback store will auto-provide a sample audit even if Firestore is not configured.
+The guest flow expects the `sample_hiring_audit` Firestore document. Run the seeding command after Firebase credentials are configured.
 
 ## Environment variables
 
@@ -132,7 +138,7 @@ See [`.env.example`](.env.example) for the full set. The main groups are:
 
 - Firebase service account and web app config
 - Gemini API key
-- Vertex AI project, region, and staging bucket
+- Vertex AI project, region, staging bucket, and endpoint ID
 - Flutter backend base URL
 
 ## Backend API
@@ -154,7 +160,7 @@ gcloud run deploy unbiased-ai \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=...,FIREBASE_...=...
+  --set-env-vars GEMINI_API_KEY=...,FIREBASE_...=...,VERTEX_ENDPOINT_ID=...,REQUIRE_VERTEX_ENDPOINT=true
 ```
 
 After deployment, update:

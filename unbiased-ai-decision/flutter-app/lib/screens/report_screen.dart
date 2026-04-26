@@ -121,7 +121,7 @@ class _ReportScreenState extends State<ReportScreen> {
             'Created: ${_formatDate(widget.initialAudit['created_at'])}',
           ),
           pw.Text(
-            'SDG tag: ${widget.initialAudit['sdg_tag'] ?? 'SDG 10.3'}',
+            'SDG targets: 10.3, 8.5, 16.b',
           ),
           pw.SizedBox(height: 18),
           pw.Text(
@@ -682,7 +682,7 @@ class _SummaryHeaderCard extends StatelessWidget {
                         ),
                         const _SummaryChip(
                           icon: Icons.public_rounded,
-                          label: 'Aligned to SDG 10.3',
+                          label: 'Mapped to SDG 10.3, 8.5, 16.b',
                         ),
                       ],
                     ),

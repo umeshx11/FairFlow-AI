@@ -232,8 +232,8 @@ class AuditPreviewSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _PreviewMetricRow(
-                    label: 'SDG tag',
-                    value: audit['sdg_tag']?.toString() ?? 'SDG 10.3',
+                    label: 'SDG targets',
+                    value: '10.3, 8.5, 16.b',
                     valueColor: AppColors.unBlue,
                   ),
                   const SizedBox(height: 12),
