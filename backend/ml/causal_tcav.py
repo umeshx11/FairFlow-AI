@@ -19,6 +19,15 @@ except Exception:
 
 OUTCOME_COLUMN = "hired"
 NON_FEATURE_COLUMNS = {"name"}
+PROTECTED_PRIORITY = [
+    "caste",
+    "religion",
+    "disability_status",
+    "region",
+    "dialect",
+    "ethnicity",
+    "gender",
+]
 
 
 def _encode_dataframe(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, LabelEncoder]]:
@@ -198,7 +207,7 @@ def run_causal_tcav_analysis(df: pd.DataFrame) -> dict[str, Any]:
     if OUTCOME_COLUMN not in df.columns:
         raise ValueError("Dataset must include hired column for causal analysis.")
 
-    protected = "ethnicity" if "ethnicity" in df.columns else "gender"
+    protected = next((column for column in PROTECTED_PRIORITY if column in df.columns), "gender")
     if protected not in df.columns:
         raise ValueError("Dataset must include at least one protected attribute (gender or ethnicity).")
 
@@ -265,4 +274,3 @@ def run_causal_tcav_analysis(df: pd.DataFrame) -> dict[str, Any]:
         "tcav_concepts": tcav_concepts,
         "engine": "dowhy" if DOWHY_AVAILABLE else "fallback-logistic",
     }
-

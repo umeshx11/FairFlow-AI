@@ -9,6 +9,7 @@ import FairnessReportCard from "../components/FairnessReportCard";
 import LocalWasmPrecheckCard from "../components/LocalWasmPrecheckCard";
 import { buildEthosInputFromCsvText } from "../wasm/csvAuditInput";
 import { runEthosPipeline } from "../wasm/ethosEngine";
+import { sanitizeCsvForUpload } from "../wasm/privacyShield";
 
 const steps = [
   { id: 1, label: "Upload" },
@@ -23,13 +24,16 @@ function Audit() {
   const [activeStep, setActiveStep] = useState(1);
   const [localPrecheck, setLocalPrecheck] = useState(null);
   const [proxyColumn, setProxyColumn] = useState("years_experience");
+  const [privacySummary, setPrivacySummary] = useState(null);
 
   const handleUpload = async (file) => {
     setUploading(true);
     setActiveStep(2);
+    let csvText = "";
 
     try {
-      const localInput = buildEthosInputFromCsvText(await file.text(), {
+      csvText = await file.text();
+      const localInput = buildEthosInputFromCsvText(csvText, {
         proxyColumn: "years_experience"
       });
       const localResult = await runEthosPipeline(localInput);
@@ -41,7 +45,19 @@ function Audit() {
     }
 
     const formData = new FormData();
-    formData.append("file", file);
+    let privacyStats = null;
+    try {
+      const sanitized = await sanitizeCsvForUpload(csvText || (await file.text()));
+      privacyStats = sanitized.stats;
+      setPrivacySummary(privacyStats);
+      const sanitizedFile = new File([sanitized.csvText], file.name, {
+        type: "text/csv"
+      });
+      formData.append("file", sanitizedFile);
+    } catch (error) {
+      setPrivacySummary(null);
+      formData.append("file", file);
+    }
 
     try {
       const response = await uploadAudit(formData);
@@ -49,7 +65,11 @@ function Audit() {
       setActiveStep(3);
       localStorage.setItem(LAST_AUDIT_STORAGE_KEY, response.audit.id);
       toast.success(
-        `Upload completed. ${response?.summary?.total_candidates ?? 0} candidates analyzed.`
+        `Upload completed. ${response?.summary?.total_candidates ?? 0} candidates analyzed${
+          privacyStats && privacyStats.fieldsHashed > 0
+            ? `, ${privacyStats.fieldsHashed} PII fields hashed locally`
+            : ""
+        }.`
       );
       return response;
     } catch (error) {
@@ -115,6 +135,22 @@ function Audit() {
       </div>
 
       <CSVUploader onUpload={handleUpload} uploading={uploading} />
+      {privacySummary && (
+        <section className="section-card border border-emerald-200 bg-emerald-50/60">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Privacy Shield</p>
+          <h3 className="mt-2 text-2xl font-bold text-slate-900">Local PII hashing applied before upload</h3>
+          <p className="mt-3 text-sm leading-7 text-slate-700">
+            Rows processed: <span className="font-semibold">{privacySummary.rowsProcessed}</span> • Fields hashed:{" "}
+            <span className="font-semibold">{privacySummary.fieldsHashed}</span>
+          </p>
+          {privacySummary.columnsHashed?.length > 0 && (
+            <p className="mt-2 text-sm text-slate-700">
+              Columns protected:{" "}
+              <span className="font-semibold">{privacySummary.columnsHashed.join(", ")}</span>
+            </p>
+          )}
+        </section>
+      )}
       <LocalWasmPrecheckCard result={localPrecheck} proxyColumn={proxyColumn} />
 
       {!report && (
@@ -149,6 +185,15 @@ function Audit() {
                 This dataset scored {Math.round(report.audit.fairness_score)} out of 100. You can
                 move into candidate review or immediately compare mitigation strategies.
               </div>
+              {report.summary?.cultural_scan && (
+                <div className="mt-6 rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-sm leading-7 text-slate-700">
+                  IndiCASA cultural scan:{" "}
+                  <span className="font-semibold">
+                    {report.summary.cultural_scan.high_risk_count}
+                  </span>{" "}
+                  high-risk dimension(s) detected ({report.summary.cultural_scan.engine}).
+                </div>
+              )}
             </div>
 
             <div className="section-card">

@@ -19,8 +19,8 @@ em++ "$SRC_FILE" \
   -s EXPORT_ES6=1 \
   -s ENVIRONMENT='web,worker,node' \
   -s EXPORT_NAME='createEthosCore' \
-  -s EXPORTED_FUNCTIONS='["_ethos_run","_malloc","_free"]' \
-  -s EXPORTED_RUNTIME_METHODS='["HEAPF32","HEAP32"]' \
+  -s EXPORTED_FUNCTIONS='["_ethos_run","_ethos_sha256_hex","_ethos_hash_pii_token","_malloc","_free"]' \
+  -s EXPORTED_RUNTIME_METHODS='["HEAPF32","HEAP32","HEAPU8"]' \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s INITIAL_MEMORY=33554432 \
   -s FILESYSTEM=0 \

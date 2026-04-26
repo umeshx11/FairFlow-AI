@@ -102,6 +102,19 @@ class MitigationResponse(BaseModel):
     mitigated_candidates: int
 
 
+class SyntheticPatchResponse(BaseModel):
+    audit_id: UUID
+    engine: str
+    enabled: bool
+    target_attribute: str
+    generated_rows: int
+    metrics_before: MetricSet
+    metrics_after: MetricSet
+    fairness_lift: float
+    reason: str | None = None
+    preview: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class MemoryHit(BaseModel):
     audit_id: UUID | None = None
     stage: str
@@ -153,3 +166,15 @@ class CertificateResponse(BaseModel):
     epsilon: float
     payload: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
+
+
+class MultimodalAuditResponse(BaseModel):
+    analysis_engine: str
+    media_type: str
+    file_name: str
+    file_size_bytes: int
+    estimated_duration_seconds: float
+    risk_score: int
+    flagged_concerns: list[dict[str, str]] = Field(default_factory=list)
+    reasoning_log: list[str] = Field(default_factory=list)
+    recommended_actions: list[str] = Field(default_factory=list)

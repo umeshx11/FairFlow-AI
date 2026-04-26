@@ -14,12 +14,26 @@ PASS_THRESHOLDS = {
 }
 
 
+def _safe_float(value: Any, *, fallback: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    if not np.isfinite(parsed):
+        return fallback
+    return parsed
+
+
 def compute_pass_flags(metrics: dict[str, float]) -> dict[str, bool]:
+    disparate_impact = _safe_float(metrics.get("disparate_impact", 0.0))
+    stat_parity_diff = _safe_float(metrics.get("stat_parity_diff", 0.0))
+    equal_opp_diff = _safe_float(metrics.get("equal_opp_diff", 0.0))
+    avg_odds_diff = _safe_float(metrics.get("avg_odds_diff", 0.0))
     return {
-        "disparate_impact": float(metrics.get("disparate_impact", 0.0)) > PASS_THRESHOLDS["disparate_impact"],
-        "stat_parity_diff": abs(float(metrics.get("stat_parity_diff", 0.0))) < PASS_THRESHOLDS["stat_parity_diff"],
-        "equal_opp_diff": abs(float(metrics.get("equal_opp_diff", 0.0))) < PASS_THRESHOLDS["equal_opp_diff"],
-        "avg_odds_diff": abs(float(metrics.get("avg_odds_diff", 0.0))) < PASS_THRESHOLDS["avg_odds_diff"],
+        "disparate_impact": disparate_impact > PASS_THRESHOLDS["disparate_impact"],
+        "stat_parity_diff": abs(stat_parity_diff) < PASS_THRESHOLDS["stat_parity_diff"],
+        "equal_opp_diff": abs(equal_opp_diff) < PASS_THRESHOLDS["equal_opp_diff"],
+        "avg_odds_diff": abs(avg_odds_diff) < PASS_THRESHOLDS["avg_odds_diff"],
     }
 
 
@@ -32,10 +46,10 @@ def calculate_fairness_score(metrics: dict[str, Any]) -> float:
 
 def metric_payload(metrics: dict[str, Any]) -> dict[str, Any]:
     payload = {
-        "disparate_impact": round(float(metrics.get("disparate_impact", 0.0)), 4),
-        "stat_parity_diff": round(float(metrics.get("stat_parity_diff", 0.0)), 4),
-        "equal_opp_diff": round(float(metrics.get("equal_opp_diff", 0.0)), 4),
-        "avg_odds_diff": round(float(metrics.get("avg_odds_diff", 0.0)), 4),
+        "disparate_impact": round(_safe_float(metrics.get("disparate_impact", 0.0)), 4),
+        "stat_parity_diff": round(_safe_float(metrics.get("stat_parity_diff", 0.0)), 4),
+        "equal_opp_diff": round(_safe_float(metrics.get("equal_opp_diff", 0.0)), 4),
+        "avg_odds_diff": round(_safe_float(metrics.get("avg_odds_diff", 0.0)), 4),
     }
     payload["pass_flags"] = metrics.get("pass_flags") or compute_pass_flags(payload)
     return payload
@@ -51,7 +65,9 @@ def to_serializable(value: Any) -> Any:
     if isinstance(value, (np.integer,)):
         return int(value)
     if isinstance(value, (np.floating,)):
-        return float(value)
+        return _safe_float(value)
+    if isinstance(value, float):
+        return _safe_float(value)
     if isinstance(value, (np.bool_,)):
         return bool(value)
     return value

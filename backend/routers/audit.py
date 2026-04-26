@@ -2,17 +2,19 @@ from io import BytesIO
 from uuid import UUID
 
 import pandas as pd
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
 from agent.memory_store import store_memory
 from database import get_db
 from ml.bias_detector import run_bias_detection
+from ml.cultural_audit import run_cultural_bias_scan
 from ml.counterfactual import generate_counterfactual
 from ml.explainer import explain_candidate
+from ml.multimodal_audit import analyze_multimodal_submission
 from models import Audit, Candidate, User
 from routers.auth import get_current_user
-from schemas import AuditResponse, BiasReport
+from schemas import AuditResponse, BiasReport, MultimodalAuditResponse
 from utils import metric_payload, serialize_audit, serialize_candidate, to_serializable
 
 
@@ -30,6 +32,24 @@ REQUIRED_COLUMNS = {
 OPTIONAL_COLUMNS = {
     "skills": "",
     "previous_companies": "",
+    "caste": "Unknown",
+    "religion": "Unknown",
+    "disability_status": "Unknown",
+    "region": "Unknown",
+    "dialect": "Unknown",
+    "email": "",
+    "phone": "",
+}
+EXCLUDED_CANDIDATE_FEATURE_COLUMNS = {
+    "name",
+    "gender",
+    "ethnicity",
+    "age",
+    "years_experience",
+    "education_level",
+    "skills",
+    "previous_companies",
+    "hired",
 }
 
 
@@ -83,7 +103,16 @@ async def upload_audit(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not parse the uploaded CSV.") from exc
 
     prepared_df = _prepare_dataframe(dataframe)
-    detection_result = run_bias_detection(prepared_df)
+    try:
+        detection_result = run_bias_detection(prepared_df)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    try:
+        cultural_scan = run_cultural_bias_scan(prepared_df)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     metrics = metric_payload(detection_result)
 
     audit = Audit(
@@ -137,7 +166,7 @@ async def upload_audit(
                 {
                     key: value
                     for key, value in row.to_dict().items()
-                    if key not in {"name", "gender", "ethnicity", "age", "years_experience", "education_level", "skills", "previous_companies", "hired"}
+                    if key not in EXCLUDED_CANDIDATE_FEATURE_COLUMNS
                 }
             ),
             skills=str(row.get("skills", "")),
@@ -156,6 +185,7 @@ async def upload_audit(
         metadata={
             "bias_detected": bool(detection_result["bias_detected"]),
             "candidate_count": len(candidates),
+            "high_risk_cultural_dimensions": ",".join(cultural_scan["high_risk_dimensions"]),
         },
     )
 
@@ -173,6 +203,12 @@ async def upload_audit(
                 if candidate.shap_values and candidate.shap_values.get("proxy_flags")
             ),
             "fairness_score": serialize_audit(audit)["fairness_score"],
+            "cultural_scan": cultural_scan,
+            "reasoning_log_preview": [
+                candidate.shap_values.get("reasoning_log", "")
+                for candidate in candidates[:5]
+                if candidate.shap_values
+            ],
         },
     }
     db.commit()
@@ -195,3 +231,54 @@ def get_audit(
     if not audit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audit not found.")
     return serialize_audit(audit)
+
+
+@router.post("/upload-multimodal", response_model=MultimodalAuditResponse)
+async def upload_multimodal_audit(
+    file: UploadFile = File(...),
+    transcript: str = Form(default=""),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    file_name = file.filename or "multimodal_input"
+    if not file_name.lower().endswith((".mp4", ".mov", ".mkv", ".wav", ".mp3", ".m4a")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .mp4/.mov/.mkv and .wav/.mp3/.m4a uploads are supported.",
+        )
+
+    payload = await file.read()
+    analysis = analyze_multimodal_submission(
+        file_name=file_name,
+        file_size_bytes=len(payload),
+        transcript=transcript,
+    )
+
+    pseudo_audit = Audit(
+        user_id=current_user.id,
+        dataset_name=file_name,
+        total_candidates=1,
+        disparate_impact=1.0,
+        stat_parity_diff=0.0,
+        equal_opp_diff=0.0,
+        avg_odds_diff=0.0,
+        bias_detected=analysis["risk_score"] >= 50,
+        mitigation_applied=False,
+    )
+    db.add(pseudo_audit)
+    db.flush()
+
+    store_memory(
+        db,
+        user_id=current_user.id,
+        audit=pseudo_audit,
+        stage="multimodal_upload",
+        metadata={
+            "media_type": analysis["media_type"],
+            "risk_score": analysis["risk_score"],
+            "concerns": ",".join(item["type"] for item in analysis["flagged_concerns"]),
+        },
+    )
+    db.commit()
+
+    return analysis

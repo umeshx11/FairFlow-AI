@@ -73,9 +73,23 @@ def explain_candidate(model, X, candidate_index: int, feature_names: list[str]) 
         for row in explanation_rows
     ]
 
+    strongest_positive = top_positive[0]["feature"] if top_positive else "none"
+    strongest_negative = top_negative[0]["feature"] if top_negative else "none"
+    reasoning_log = (
+        "Candidate decision explanation: "
+        f"strongest positive contributor={strongest_positive}; "
+        f"strongest negative contributor={strongest_negative}. "
+        + (
+            f"Potential proxy discrimination risk via {', '.join(proxy_flags)}."
+            if proxy_flags
+            else "No high-importance proxy feature exceeded the risk threshold."
+        )
+    )
+
     return {
         "top_5_positive": top_positive,
         "top_5_negative": top_negative,
         "waterfall_data": waterfall_data,
         "proxy_flags": proxy_flags,
+        "reasoning_log": reasoning_log,
     }

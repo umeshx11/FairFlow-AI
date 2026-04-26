@@ -13,10 +13,11 @@ from sqlalchemy.orm import Session, joinedload
 from agent.memory_store import store_memory
 from database import get_db
 from ml.mitigator import apply_mitigations
+from ml.synthetic_patch import generate_synthetic_counterfactual_patch
 from models import Audit, AuditCertificate, User
 from privacy import compute_report_hash, sanitize_report_aggregates, sanitize_metric
 from routers.auth import get_current_user
-from schemas import CertificateResponse, MitigationResponse
+from schemas import CertificateResponse, MitigationResponse, SyntheticPatchResponse
 from utils import calculate_fairness_score, compute_group_hire_rates, metric_payload, rebuild_audit_rows
 
 
@@ -124,6 +125,59 @@ def mitigate_audit(
         "fairness_score_before": fairness_score_before,
         "fairness_score_after": fairness_score_after,
         "mitigated_candidates": mitigated_candidates,
+    }
+
+
+@router.post("/mitigate/synthetic/{audit_id}", response_model=SyntheticPatchResponse)
+def mitigate_with_synthetic_patch(
+    audit_id: UUID,
+    target_attribute: str = Query(default="gender"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    audit = _get_audit_for_user(db, audit_id, current_user.id)
+    ordered_candidates = list(audit.candidates)
+    if not ordered_candidates:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This audit does not contain candidates.")
+
+    reconstructed_df = pd.DataFrame(rebuild_audit_rows(ordered_candidates))
+    patch_result = generate_synthetic_counterfactual_patch(
+        reconstructed_df,
+        target_attribute=target_attribute,
+    )
+    metrics_before = metric_payload(patch_result["metrics_before"])
+    metrics_after = metric_payload(patch_result["metrics_after"])
+    fairness_before = calculate_fairness_score(metrics_before)
+    fairness_after = calculate_fairness_score(metrics_after)
+
+    current_results = dict(audit.mitigation_results or {})
+    current_results["synthetic_patch"] = patch_result
+    audit.mitigation_results = current_results
+
+    store_memory(
+        db,
+        user_id=current_user.id,
+        audit=audit,
+        stage="synthetic_patch",
+        metadata={
+            "target_attribute": target_attribute,
+            "generated_rows": patch_result["generated_rows"],
+            "fairness_lift": round(fairness_after - fairness_before, 2),
+        },
+    )
+    db.commit()
+
+    return {
+        "audit_id": audit.id,
+        "engine": patch_result["engine"],
+        "enabled": bool(patch_result["enabled"]),
+        "target_attribute": target_attribute,
+        "generated_rows": int(patch_result["generated_rows"]),
+        "metrics_before": metrics_before,
+        "metrics_after": metrics_after,
+        "fairness_lift": round(fairness_after - fairness_before, 2),
+        "reason": patch_result.get("reason"),
+        "preview": patch_result.get("preview", []),
     }
 
 

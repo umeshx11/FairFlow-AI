@@ -26,6 +26,89 @@ except Exception:
 LABEL_COLUMN = "hired"
 PROTECTED_ATTRIBUTE = "gender"
 NON_FEATURE_COLUMNS = {"name"}
+COUNTERFACTUAL_PROTECTED_ATTRIBUTES = [
+    "gender",
+    "ethnicity",
+    "caste",
+    "religion",
+    "disability_status",
+    "region",
+    "dialect",
+]
+
+POSITIVE_LABEL_TOKENS = {
+    "1",
+    "true",
+    "t",
+    "yes",
+    "y",
+    "hired",
+    "selected",
+    "accept",
+    "accepted",
+}
+NEGATIVE_LABEL_TOKENS = {
+    "0",
+    "false",
+    "f",
+    "no",
+    "n",
+    "rejected",
+    "reject",
+    "not_hired",
+    "not_selected",
+    "declined",
+}
+
+
+def _normalize_label_token(value: Any) -> str:
+    return str(value).strip().lower().replace("-", "_").replace(" ", "_")
+
+
+def _normalize_hired_column(series: pd.Series) -> pd.Series:
+    numeric_series = pd.to_numeric(series, errors="coerce")
+    if numeric_series.notna().all():
+        if not numeric_series.isin([0, 1]).all():
+            invalid_values = sorted(set(numeric_series[~numeric_series.isin([0, 1])].tolist()))[:5]
+            raise ValueError(
+                "Column 'hired' must be binary. Supported values include "
+                "0/1, yes/no, true/false. "
+                f"Found unsupported numeric values: {invalid_values}"
+            )
+        return numeric_series.astype(int)
+
+    normalized_tokens = series.map(_normalize_label_token)
+    mapped = normalized_tokens.map(
+        lambda token: 1
+        if token in POSITIVE_LABEL_TOKENS
+        else 0
+        if token in NEGATIVE_LABEL_TOKENS
+        else np.nan
+    )
+    if mapped.isna().any():
+        invalid_tokens = sorted(set(normalized_tokens[mapped.isna()].tolist()))[:5]
+        raise ValueError(
+            "Column 'hired' must be binary. Supported values include "
+            "0/1, yes/no, true/false, hired/rejected. "
+            f"Found unsupported values: {invalid_tokens}"
+        )
+    return mapped.astype(int)
+
+
+def _select_test_size(y: pd.Series) -> int | None:
+    class_count = int(y.nunique())
+    if len(y) < 6 or class_count < 2:
+        return None
+    min_class_count = int(y.value_counts().min())
+    if min_class_count < 2:
+        return None
+
+    test_size = max(1, int(round(len(y) * 0.2)))
+    if test_size < class_count:
+        test_size = class_count
+    if test_size >= len(y):
+        return None
+    return test_size
 
 
 def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -62,7 +145,7 @@ def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     if LABEL_COLUMN in normalized.columns:
-        normalized[LABEL_COLUMN] = normalized[LABEL_COLUMN].astype(int)
+        normalized[LABEL_COLUMN] = _normalize_hired_column(normalized[LABEL_COLUMN])
 
     return normalized
 
@@ -197,28 +280,54 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
     X = encoded_df[feature_columns]
     y = encoded_df[LABEL_COLUMN].astype(int)
 
-    stratify = y if y.nunique() > 1 else None
-    X_train, _, y_train, _ = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42,
-        stratify=stratify,
-    )
+    X_train = X
+    y_train = y
+    test_size = _select_test_size(y)
+    if test_size is not None:
+        try:
+            X_train, _, y_train, _ = train_test_split(
+                X,
+                y,
+                test_size=test_size,
+                random_state=42,
+                stratify=y,
+            )
+        except ValueError:
+            try:
+                X_train, _, y_train, _ = train_test_split(
+                    X,
+                    y,
+                    test_size=test_size,
+                    random_state=42,
+                    stratify=None,
+                )
+            except ValueError:
+                X_train = X
+                y_train = y
 
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
     predictions = model.predict(X)
-    probabilities = model.predict_proba(X)[:, 1]
+    proba = model.predict_proba(X)
+    if proba.ndim == 2 and proba.shape[1] > 1:
+        class_to_index = {int(label): index for index, label in enumerate(model.classes_)}
+        positive_index = class_to_index.get(1)
+        probabilities = (
+            proba[:, positive_index].astype(float)
+            if positive_index is not None
+            else predictions.astype(float)
+        )
+    else:
+        probabilities = predictions.astype(float)
     # Baseline fairness should reflect observed hiring decisions in the uploaded dataset.
     observed_decisions = y.to_numpy()
     metrics = compute_fairness_metrics(X, observed_decisions, observed_decisions)
 
-    majority_values = {
-        "gender": normalized_df["gender"].mode().iloc[0],
-        "ethnicity": normalized_df["ethnicity"].mode().iloc[0] if "ethnicity" in normalized_df.columns else "",
-    }
+    majority_values: dict[str, Any] = {}
+    for attribute in COUNTERFACTUAL_PROTECTED_ATTRIBUTES:
+        if attribute in normalized_df.columns and not normalized_df[attribute].dropna().empty:
+            majority_values[attribute] = normalized_df[attribute].mode().iloc[0]
 
     return {
         **metrics,

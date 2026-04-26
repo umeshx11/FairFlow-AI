@@ -5,6 +5,7 @@ export const TOKEN_STORAGE_KEY = "fairlens_token";
 export const USER_EMAIL_STORAGE_KEY = "fairlens_user_email";
 export const USER_ID_STORAGE_KEY = "fairlens_user_id";
 export const LAST_AUDIT_STORAGE_KEY = "fairlens_last_audit_id";
+export const AUTH_STATE_EVENT = "fairlens:auth-state-changed";
 
 const runtimeHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
 const apiHost = runtimeHost === "127.0.0.1" ? "127.0.0.1" : "localhost";
@@ -12,6 +13,14 @@ const apiHost = runtimeHost === "127.0.0.1" ? "127.0.0.1" : "localhost";
 const api = axios.create({
   baseURL: `http://${apiHost}:8000`
 });
+
+const isAuthRoute = (pathname) => pathname === "/login" || pathname === "/register";
+
+const emitAuthStateChange = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_STATE_EVENT));
+  }
+};
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -28,9 +37,8 @@ api.interceptors.response.use(
     const isAuthRequest = requestUrl.includes("/auth/login") || requestUrl.includes("/auth/register");
     if (error.response?.status === 401 && !isAuthRequest) {
       clearSession();
-      toast.error("Your session expired. Please sign in again.");
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.assign("/login");
+      if (typeof window !== "undefined" && !isAuthRoute(window.location.pathname)) {
+        window.location.replace("/login");
       }
     }
     return Promise.reject(error);
@@ -59,6 +67,9 @@ const performRequest = async (request, fallbackMessage) => {
     const response = await request();
     return response.data;
   } catch (error) {
+    if (error?.response?.status === 401) {
+      throw error;
+    }
     toast.error(getErrorMessage(error, fallbackMessage));
     throw error;
   }
@@ -68,6 +79,7 @@ export const persistSession = (tokenData) => {
   localStorage.setItem(TOKEN_STORAGE_KEY, tokenData.access_token);
   localStorage.setItem(USER_EMAIL_STORAGE_KEY, tokenData.user_email);
   localStorage.setItem(USER_ID_STORAGE_KEY, tokenData.user_id);
+  emitAuthStateChange();
 };
 
 export const clearSession = () => {
@@ -75,6 +87,7 @@ export const clearSession = () => {
   localStorage.removeItem(USER_EMAIL_STORAGE_KEY);
   localStorage.removeItem(USER_ID_STORAGE_KEY);
   localStorage.removeItem(LAST_AUDIT_STORAGE_KEY);
+  emitAuthStateChange();
 };
 
 export const register = async (data) =>
@@ -93,6 +106,17 @@ export const uploadAudit = async (formData, config = {}) =>
         onUploadProgress: config.onUploadProgress
       }),
     "Audit upload failed."
+  );
+
+export const uploadMultimodalAudit = async (formData) =>
+  performRequest(
+    () =>
+      api.post("/audit/upload-multimodal", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      }),
+    "Multimodal upload failed."
   );
 
 export const getAudit = async (id) =>
@@ -119,10 +143,22 @@ export const getCounterfactual = async (candidateId) =>
 export const mitigateAudit = async (auditId) =>
   performRequest(() => api.post(`/mitigate/${auditId}`), "Mitigation analysis failed.");
 
+export const runSyntheticPatch = async (auditId, targetAttribute = "gender") =>
+  performRequest(
+    () => api.post(`/mitigate/synthetic/${auditId}`, null, { params: { target_attribute: targetAttribute } }),
+    "Synthetic patch generation failed."
+  );
+
 export const runGovernanceAuditor = async (auditId) =>
   performRequest(
     () => api.post(`/governance/auditor/${auditId}`),
     "Could not generate Ethos agent recommendation."
+  );
+
+export const runDeepInspection = async (auditId) =>
+  performRequest(
+    () => api.post(`/inspection/deep/${auditId}`),
+    "Could not run deep inspection."
   );
 
 export const downloadReport = async (auditId) => {

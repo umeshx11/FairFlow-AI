@@ -20,7 +20,9 @@ import {
   downloadReport,
   getAudit,
   mitigateAudit,
-  runGovernanceAuditor
+  runDeepInspection,
+  runGovernanceAuditor,
+  runSyntheticPatch
 } from "../api/fairlensApi";
 import MetricComparisonTable from "../components/MetricComparisonTable";
 import Spinner from "../components/Spinner";
@@ -118,6 +120,10 @@ function Mitigate() {
   const [showModal, setShowModal] = useState(false);
   const [agentDecision, setAgentDecision] = useState(null);
   const [loadingAgentDecision, setLoadingAgentDecision] = useState(false);
+  const [syntheticResult, setSyntheticResult] = useState(null);
+  const [runningSynthetic, setRunningSynthetic] = useState(false);
+  const [deepInspection, setDeepInspection] = useState(null);
+  const [loadingDeepInspection, setLoadingDeepInspection] = useState(false);
 
   useEffect(() => {
     if (auditId) {
@@ -148,6 +154,7 @@ function Mitigate() {
       const response = await mitigateAudit(auditId);
       setResult(response);
       setLoadingAgentDecision(true);
+      setLoadingDeepInspection(true);
       try {
         const recommendation = await runGovernanceAuditor(auditId);
         setAgentDecision(recommendation);
@@ -155,6 +162,14 @@ function Mitigate() {
         setAgentDecision(null);
       } finally {
         setLoadingAgentDecision(false);
+      }
+      try {
+        const inspection = await runDeepInspection(auditId);
+        setDeepInspection(inspection);
+      } catch (error) {
+        setDeepInspection(null);
+      } finally {
+        setLoadingDeepInspection(false);
       }
     } catch (error) {
       setLoadingAgentDecision(false);
@@ -175,6 +190,23 @@ function Mitigate() {
       URL.revokeObjectURL(url);
     } catch (error) {
       return;
+    }
+  };
+
+  const handleRunSyntheticPatch = async () => {
+    setRunningSynthetic(true);
+    try {
+      const response = await runSyntheticPatch(auditId, "gender");
+      setSyntheticResult(response);
+      toast.success(
+        response.enabled
+          ? `Synthetic patch generated ${response.generated_rows} profiles.`
+          : response.reason || "Synthetic patch did not generate rows."
+      );
+    } catch (error) {
+      return;
+    } finally {
+      setRunningSynthetic(false);
     }
   };
 
@@ -309,6 +341,73 @@ function Mitigate() {
             </div>
           </div>
 
+          {syntheticResult && (
+            <div className="section-card border border-emerald-200 bg-emerald-50/70">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                Debias Now Synthetic Patch
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-900">
+                {syntheticResult.enabled
+                  ? `${syntheticResult.generated_rows} counterfactual profiles generated`
+                  : "Synthetic patch completed without new rows"}
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-slate-700">
+                Engine: <span className="font-semibold">{syntheticResult.engine}</span> • Fairness
+                lift: <span className="font-semibold">{syntheticResult.fairness_lift}</span> points
+              </p>
+              {syntheticResult.reason && (
+                <p className="mt-2 text-sm text-slate-600">{syntheticResult.reason}</p>
+              )}
+            </div>
+          )}
+
+          <div className="section-card border border-slate-200 bg-white">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-dark">
+              Concept Sensitivity (TCAV)
+            </p>
+            <h3 className="mt-2 text-2xl font-bold text-slate-900">Glass Box concept influence view</h3>
+            {loadingDeepInspection ? (
+              <p className="mt-3 text-sm text-slate-600">Running causal + TCAV deep inspection...</p>
+            ) : deepInspection?.tcav_concepts?.length ? (
+              <>
+                <div className="mt-5 space-y-4">
+                  {deepInspection.tcav_concepts.slice(0, 5).map((concept) => {
+                    const width = Math.max(8, Math.min(100, Math.round(Math.abs(concept.sensitivity) * 100)));
+                    return (
+                      <div key={concept.concept}>
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <p className="font-semibold text-slate-800">{concept.concept}</p>
+                          <p className="text-slate-500">
+                            tcav={Number(concept.tcav_score).toFixed(2)} • sens=
+                            {Number(concept.sensitivity).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-[linear-gradient(90deg,#0f172a_0%,#f59e0b_100%)]"
+                            style={{ width: `${width}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500">{concept.summary}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {deepInspection?.proxy_findings?.[0] && (
+                  <p className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-slate-700">
+                    Top causal proxy path:{" "}
+                    <span className="font-semibold">{deepInspection.proxy_findings[0].feature}</span> (
+                    risk={Number(deepInspection.proxy_findings[0].risk_score).toFixed(3)})
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-slate-600">
+                Deep inspection data is not available for this run yet.
+              </p>
+            )}
+          </div>
+
           <MetricComparisonTable data={result} />
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -432,6 +531,15 @@ function Mitigate() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleRunSyntheticPatch}
+                  disabled={runningSynthetic}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {runningSynthetic ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {runningSynthetic ? "Generating synthetic profiles..." : "Debias Now (Synthetic Patch)"}
+                </button>
                 <button
                   type="button"
                   onClick={handleDownloadReport}
