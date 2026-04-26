@@ -4,9 +4,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 
 class SdgBadge extends StatelessWidget {
-  const SdgBadge({super.key, this.compact = false});
+  const SdgBadge({
+    super.key,
+    this.compact = false,
+    this.mapping = const [],
+  });
 
   final bool compact;
+  final List<Map<String, dynamic>> mapping;
 
   static const _sdgUrl = 'https://sdgs.un.org/goals/goal10';
 
@@ -42,11 +47,11 @@ class SdgBadge extends StatelessWidget {
                   Icons.sync_rounded,
                   size: 16,
                   color: AppColors.unBlue,
-                  semanticLabel: 'SDG 10 badge',
+                  semanticLabel: 'SDG badge',
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'SDG 10.3',
+                  mapping.isEmpty ? 'SDG 10.3' : 'SDG 10.3 / 8.5 / 16.b',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: AppColors.unBlue,
                     fontWeight: FontWeight.w800,
@@ -58,6 +63,27 @@ class SdgBadge extends StatelessWidget {
         ),
       );
     }
+
+    final List<Map<String, dynamic>> rows = mapping.isEmpty
+        ? const <Map<String, dynamic>>[
+            {
+              'target': 'SDG 10.3',
+              'title':
+                  'Ensure equal opportunity and reduce inequalities of outcome.',
+              'status': 'tracked',
+            },
+            {
+              'target': 'SDG 8.5',
+              'title': 'Support equal access to productive employment.',
+              'status': 'tracked',
+            },
+            {
+              'target': 'SDG 16.b',
+              'title': 'Support non-discriminatory policies and procedures.',
+              'status': 'tracked',
+            },
+          ]
+        : mapping;
 
     return Material(
       color: Colors.transparent,
@@ -94,7 +120,7 @@ class SdgBadge extends StatelessWidget {
                 child: const Icon(
                   Icons.sync_rounded,
                   color: Colors.white,
-                  semanticLabel: 'SDG 10 icon',
+                  semanticLabel: 'SDG target mapping',
                 ),
               ),
               const SizedBox(width: 16),
@@ -103,23 +129,19 @@ class SdgBadge extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SDG 10 — Reduced Inequalities',
+                      'SDG Targets Live in This Audit',
                       style: theme.textTheme.titleLarge?.copyWith(
                         color: Colors.white,
                         fontSize: 18,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Target 10.3 — Ensure equal opportunity and reduce inequalities of outcome.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.94),
-                        height: 1.5,
-                      ),
-                    ),
+                    for (final item in rows) ...[
+                      const SizedBox(height: 8),
+                      _SdgTargetRow(item: item),
+                    ],
                     const SizedBox(height: 12),
                     Text(
-                      'Learn More →',
+                      'Learn More',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -132,6 +154,49 @@ class SdgBadge extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SdgTargetRow extends StatelessWidget {
+  const _SdgTargetRow({
+    required this.item,
+  });
+
+  final Map<String, dynamic> item;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = item['status']?.toString() ?? 'tracked';
+    final aligned = status == 'aligned';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          aligned ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+          size: 16,
+          color: aligned ? Colors.white : const Color(0xFFFFE08A),
+          semanticLabel: status,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withOpacity(0.94),
+                    height: 1.4,
+                  ),
+              children: [
+                TextSpan(
+                  text: '${item['target'] ?? 'SDG'}: ',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                TextSpan(text: item['title']?.toString() ?? ''),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

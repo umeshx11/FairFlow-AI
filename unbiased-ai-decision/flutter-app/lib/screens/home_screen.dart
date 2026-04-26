@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen>
       return {
         'auditsRun': 0,
         'avgBiasScore': 0.0,
-        'sdgAlignment': 'SDG 10.3',
+        'sdgAlignment': 'SDG 10.3, 8.5, 16.b',
         'recentAudits': <Map<String, dynamic>>[],
       };
     }
@@ -238,13 +238,13 @@ class _HomeScreenState extends State<HomeScreen>
               {
                 'auditsRun': 0,
                 'avgBiasScore': 0.0,
-                'sdgAlignment': 'SDG 10.3',
+                'sdgAlignment': 'SDG 10.3, 8.5, 16.b',
                 'recentAudits': <Map<String, dynamic>>[],
               };
 
-          final recentAudits =
-              (summary['recentAudits'] as List?)?.cast<Map<String, dynamic>>() ??
-                  <Map<String, dynamic>>[];
+          final recentAudits = (summary['recentAudits'] as List?)
+                  ?.cast<Map<String, dynamic>>() ??
+              <Map<String, dynamic>>[];
           final double avgBias =
               (summary['avgBiasScore'] as num?)?.toDouble() ?? 0.0;
 
@@ -300,8 +300,8 @@ class _HomeScreenState extends State<HomeScreen>
                       const SizedBox(width: 14),
                       const _GlassStatCard(
                         title: 'SDG Alignment',
-                        value: 'SDG 10.3',
-                        subtitle: 'Equal opportunity focus is active',
+                        value: '3 targets',
+                        subtitle: '10.3, 8.5, and 16.b mapped',
                         icon: Icons.verified_rounded,
                         accent: AppColors.unBlue,
                       ),
@@ -349,13 +349,13 @@ class _HomeScreenState extends State<HomeScreen>
                   ...recentAudits.asMap().entries.map(
                         (entry) => Padding(
                           padding: EdgeInsets.only(
-                            bottom: entry.key == recentAudits.length - 1
-                                ? 0
-                                : 14,
+                            bottom:
+                                entry.key == recentAudits.length - 1 ? 0 : 14,
                           ),
                           child: _AuditPreviewCard(
                             audit: entry.value,
-                            formattedDate: _formatDate(entry.value['created_at']),
+                            formattedDate:
+                                _formatDate(entry.value['created_at']),
                             score: _scoreOf(entry.value),
                             severityColor:
                                 _severityColor(_scoreOf(entry.value)),
@@ -470,7 +470,7 @@ class _GreetingPanel extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'SDG 10.3 aligned',
+                  'SDG 10.3, 8.5, 16.b',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.unBlue,
                         fontWeight: FontWeight.w700,
