@@ -23,8 +23,9 @@ class AuditResult(BaseModel):
     audit_id: str | None = None
     user_id: str
     model_name: str
+    organization_name: str = "FairFlow Demo Organization"
     dataset_name: str
-    domain: str = "general"
+    domain: str = "hiring"
     model_family: str = "unknown"
     analysis_backend: str = "local"
     bias_score: float
@@ -40,11 +41,15 @@ class AuditResult(BaseModel):
     gemini_recommendations: list[dict[str, Any]] = Field(default_factory=list)
     gemini_legal_risk: str = ""
     gemini_audit_qa: list[dict[str, str]] = Field(default_factory=list)
+    jurisdiction_risks: list[dict[str, Any]] = Field(default_factory=list)
     candidate_flags: list[dict[str, Any]] = Field(default_factory=list)
     counterfactuals: list[dict[str, Any]] = Field(default_factory=list)
     sdg_tag: str = "SDG 10.3"
-    sdg_mapping: list[dict[str, Any]] = Field(default_factory=list)
+    sdg_mapping: dict[str, Any] = Field(default_factory=dict)
     status: str = "completed"
     stage: str = "complete"
     vertex_job_name: str | None = None
+    vertex_endpoint_name: str | None = None
+    certificate_sha256: str = ""
+    certified_fair: bool = False
     created_at: datetime | None = None

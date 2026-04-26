@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from firebase_config import auth, firebase_app
+from firebase_config import auth, require_firebase_app
 
 
 router = APIRouter()
@@ -21,11 +21,13 @@ def get_current_user(
             detail="Missing Firebase ID token.",
         )
 
-    if firebase_app is None:
+    try:
+        require_firebase_app()
+    except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Firebase authentication is not configured on the backend.",
-        )
+        ) from exc
 
     try:
         decoded = auth.verify_id_token(credentials.credentials)

@@ -2,134 +2,33 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator
 from typing import Any
 
-from google import genai
+try:
+    from google import genai
+except ImportError:
+    genai = None
 
 
-PROMPT_TEMPLATE = """
-You are an AI fairness expert. A bias audit has been run on an
-automated decision system. Here are the results:
-
-Bias Score: {bias_score}/100 (0=fair, 100=extremely biased)
-Demographic Parity Difference: {demographic_parity}
-Equalized Odds Difference: {equalized_odds}
-Top 3 SHAP features driving unfair outcomes: {shap_top3}
-Causal bias pathway detected: {causal_pathway}
-
-Write exactly 3 sentences explaining:
-1. What specific bias was found and in which feature
-2. What real-world harm this could cause to affected groups
-3. The single most important fix the organization should make
-
-Write for a non-technical audience. Be direct. No jargon.
-Reference SDG 10.3 (reduced inequalities of outcome) if bias is severe.
-""".strip()
-
-INSIGHTS_PROMPT_TEMPLATE = """
-You are an AI fairness reviewer for a production audit. Return strict JSON
-with these keys: explanation, recommendations, legal_risk, audit_qa.
-
-Audit context:
-- Domain: {domain}
-- Bias Score: {bias_score}/100
-- Demographic Parity Difference: {demographic_parity}
-- Equalized Odds Difference: {equalized_odds}
-- Disparate Impact: {disparate_impact}
-- Top SHAP drivers: {shap_top3}
-- Causal pathway: {causal_pathway}
-- Flagged decision rows: {candidate_flags}
-- Counterfactuals: {counterfactuals}
-- SDG mapping: {sdg_mapping}
-
-Rules:
-- explanation: exactly 3 concise sentences for non-technical reviewers.
-- recommendations: 3 to 5 objects with title, action, priority, row_id.
-- legal_risk: one paragraph naming relevant adverse-impact thresholds.
-- audit_qa: 3 objects with question and answer. Include "why was this row flagged?"
-- Keep jurisdictional language general unless the audit data names a jurisdiction.
-""".strip()
+MODEL_NAME = "gemini-1.5-flash"
 
 
-def _fallback_explanation(bias_result: dict[str, Any]) -> str:
-    top_feature = ", ".join(bias_result.get("shap_top3", [])[:1]) or "the leading proxy feature"
-    severe = float(bias_result.get("bias_score", 0)) >= 60
-    sdg_clause = " and directly undermines SDG 10.3" if severe else ""
-    return (
-        f"The audit found unfair outcomes linked most strongly to {top_feature}, which is driving the model toward unequal decisions. "
-        f"This can deny qualified people fair access to jobs, loans, or care{sdg_clause}. "
-        f"The single most important fix is to remove or constrain that feature and retrain the model on more balanced data."
-    )
+def gemini_sdk_available() -> bool:
+    return genai is not None
 
 
-def _fallback_recommendations(bias_result: dict[str, Any]) -> list[dict[str, Any]]:
-    flags = bias_result.get("candidate_flags", [])[:3]
-    recommendations: list[dict[str, Any]] = []
-    for flag in flags:
-        row_id = flag.get("row_id", "flagged row")
-        drivers = ", ".join(flag.get("primary_drivers", []) or bias_result.get("shap_top3", []))
-        recommendations.append(
-            {
-                "title": f"Review {row_id}",
-                "action": (
-                    f"Re-score this decision with {drivers or 'proxy-heavy features'} masked, "
-                    "then document a human review before final action."
-                ),
-                "priority": "high",
-                "row_id": row_id,
-            }
-        )
-
-    if not recommendations:
-        recommendations.append(
-            {
-                "title": "Retrain with constrained proxy features",
-                "action": "Remove or cap the strongest proxy drivers and compare fairness metrics before release.",
-                "priority": "high",
-                "row_id": None,
-            }
-        )
-    return recommendations
+def _client() -> Any | None:
+    if not gemini_sdk_available():
+        return None
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return None
+    return genai.Client(api_key=api_key)
 
 
-def _fallback_legal_risk(bias_result: dict[str, Any]) -> str:
-    metrics = bias_result.get("fairness_metrics", {})
-    disparate_impact = metrics.get("disparate_impact", bias_result.get("disparate_impact", 0))
-    parity = abs(float(metrics.get("demographic_parity", bias_result.get("demographic_parity", 0)) or 0))
-    return (
-        "This audit should be treated as elevated legal risk because the parity gap "
-        f"is {parity:.3f} against a 0.100 review threshold and disparate impact is "
-        f"{float(disparate_impact or 0):.3f} against the four-fifths threshold of 0.800. "
-        "A compliance reviewer should validate business necessity, proxy-feature use, and appeal procedures."
-    )
-
-
-def _fallback_audit_qa(bias_result: dict[str, Any]) -> list[dict[str, str]]:
-    top_feature = ", ".join(bias_result.get("shap_top3", [])[:2]) or "the strongest proxy drivers"
-    pathway = bias_result.get("causal_pathway") or "No strong pathway detected"
-    return [
-        {
-            "question": "Why was this row flagged?",
-            "answer": f"It had a low favorable-decision probability and relied on {top_feature}.",
-        },
-        {
-            "question": "Which fairness rule is most concerning?",
-            "answer": "The report compares parity gaps to 0.10 and disparate impact to the 0.80 four-fifths threshold.",
-        },
-        {
-            "question": "What causal pathway should reviewers inspect?",
-            "answer": f"Review the pathway: {pathway}.",
-        },
-    ]
-
-
-def _fallback_insights(bias_result: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "explanation": _fallback_explanation(bias_result),
-        "recommendations": _fallback_recommendations(bias_result),
-        "legal_risk": _fallback_legal_risk(bias_result),
-        "audit_qa": _fallback_audit_qa(bias_result),
-    }
+def _system_prompt(instruction: str, context: str) -> str:
+    return f"SYSTEM INSTRUCTION:\n{instruction}\n\nCONTEXT:\n{context}"
 
 
 def _parse_json_response(text: str) -> dict[str, Any] | None:
@@ -151,64 +50,229 @@ def _parse_json_response(text: str) -> dict[str, Any] | None:
     return decoded if isinstance(decoded, dict) else None
 
 
-def generate_explanation(bias_result: dict[str, Any]) -> str:
-    prompt = PROMPT_TEMPLATE.format(
-        bias_score=bias_result.get("bias_score", 0),
-        demographic_parity=bias_result.get("demographic_parity", 0),
-        equalized_odds=bias_result.get("equalized_odds", 0),
-        shap_top3=", ".join(bias_result.get("shap_top3", [])),
-        causal_pathway=bias_result.get("causal_pathway", "No strong pathway detected"),
-    )
-
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return _fallback_explanation(bias_result)
-
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=prompt,
-        )
-        text = (response.text or "").strip()
-        return text or _fallback_explanation(bias_result)
-    except Exception:
-        return _fallback_explanation(bias_result)
-
-
-def generate_gemini_insights(bias_result: dict[str, Any]) -> dict[str, Any]:
-    fallback = _fallback_insights(bias_result)
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
+def _generate_json(prompt: str, fallback: dict[str, Any]) -> dict[str, Any]:
+    client = _client()
+    if client is None:
         return fallback
-
-    prompt = INSIGHTS_PROMPT_TEMPLATE.format(
-        domain=bias_result.get("domain", "general"),
-        bias_score=bias_result.get("bias_score", 0),
-        demographic_parity=bias_result.get("demographic_parity", 0),
-        equalized_odds=bias_result.get("equalized_odds", 0),
-        disparate_impact=bias_result.get("disparate_impact", 0),
-        shap_top3=", ".join(bias_result.get("shap_top3", [])),
-        causal_pathway=bias_result.get("causal_pathway", "No strong pathway detected"),
-        candidate_flags=json.dumps(bias_result.get("candidate_flags", [])[:5]),
-        counterfactuals=json.dumps(bias_result.get("counterfactuals", [])[:5]),
-        sdg_mapping=json.dumps(bias_result.get("sdg_mapping", [])),
-    )
-
     try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model="gemini-1.5-flash",
-            contents=prompt,
-        )
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
         decoded = _parse_json_response(response.text or "")
-        if decoded is None:
-            return fallback
-        return {
-            "explanation": decoded.get("explanation") or fallback["explanation"],
-            "recommendations": decoded.get("recommendations") or fallback["recommendations"],
-            "legal_risk": decoded.get("legal_risk") or fallback["legal_risk"],
-            "audit_qa": decoded.get("audit_qa") or fallback["audit_qa"],
-        }
+        return decoded if decoded is not None else fallback
     except Exception:
         return fallback
+
+
+def _fallback_explanation(audit_payload: dict[str, Any]) -> str:
+    top_feature = ", ".join(audit_payload.get("shap_top3", [])[:1]) or "the strongest proxy feature"
+    return (
+        f"The audit shows that {top_feature} is driving uneven outcomes across protected groups. "
+        "That can turn historical disadvantage into automated decisions that feel objective but are not fair. "
+        "The most important next step is to review proxy-heavy features and apply human oversight before release."
+    )
+
+
+def _fallback_recommendations(audit_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    flags = audit_payload.get("candidate_flags", [])[:3]
+    if not flags:
+        return [
+            {
+                "title": "Retrain with proxy controls",
+                "action": "Remove or constrain the strongest proxy-heavy features and compare fairness metrics before deployment.",
+                "priority": "high",
+                "row_id": None,
+            }
+        ]
+    rows = []
+    for flag in flags:
+        rows.append(
+            {
+                "title": f"Review {flag.get('row_id', 'flagged row')}",
+                "action": "Re-run this decision with proxy-heavy features masked and record a human override decision.",
+                "priority": "high",
+                "row_id": flag.get("row_id"),
+            }
+        )
+    return rows
+
+
+def _fallback_legal_risk(audit_payload: dict[str, Any]) -> str:
+    metrics = audit_payload.get("fairness_metrics", {})
+    return (
+        "This audit should be reviewed for legal exposure because the fairness thresholds are compared directly "
+        f"against a disparate impact of {metrics.get('disparate_impact', 0)} and an equalized odds gap of {metrics.get('equalized_odds', 0)}."
+    )
+
+
+def _fallback_jurisdiction_risks(audit_payload: dict[str, Any]) -> list[dict[str, str]]:
+    metrics = audit_payload.get("fairness_metrics", {})
+    impact = float(metrics.get("disparate_impact", 0) or 0)
+    eeoc_status = "green" if impact >= 0.8 else "red"
+    return [
+        {
+            "jurisdiction": "EU",
+            "framework": "AI Act Article 10",
+            "status": "amber",
+            "summary": "Training data quality and proxy monitoring should be documented before deployment.",
+        },
+        {
+            "jurisdiction": "US",
+            "framework": "EEOC four-fifths rule",
+            "status": eeoc_status,
+            "summary": (
+                "Disparate impact remains above the four-fifths threshold."
+                if eeoc_status == "green"
+                else "Disparate impact is below 0.8 and should be treated as a release blocker."
+            ),
+        },
+        {
+            "jurisdiction": "India",
+            "framework": "Algorithmic accountability",
+            "status": "amber",
+            "summary": "Explainability exists, but mitigation tracking should be retained for governance review.",
+        },
+    ]
+
+
+def _fallback_audit_qa(audit_payload: dict[str, Any]) -> list[dict[str, str]]:
+    top_feature = ", ".join(audit_payload.get("shap_top3", [])[:2]) or "the strongest drivers"
+    return [
+        {
+            "question": "Which feature is causing the most bias?",
+            "answer": f"The audit points first to {top_feature}.",
+        },
+        {
+            "question": "Is this audit legally compliant?",
+            "answer": "Compliance depends on whether the fairness thresholds and mitigation steps are satisfied before release.",
+        },
+    ]
+
+
+def generate_gemini_insights(audit_payload: dict[str, Any]) -> dict[str, Any]:
+    fallback = {
+        "explanation": _fallback_explanation(audit_payload),
+        "recommendations": _fallback_recommendations(audit_payload),
+        "legal_risk": _fallback_legal_risk(audit_payload),
+        "audit_qa": _fallback_audit_qa(audit_payload),
+        "jurisdiction_risks": _fallback_jurisdiction_risks(audit_payload),
+    }
+    prompt = _system_prompt(
+        (
+            "Return strict JSON with keys explanation, recommendations, legal_risk, audit_qa, jurisdiction_risks. "
+            "Use exactly 3 sentences for explanation. "
+            "Each recommendation must contain title, action, priority, row_id. "
+            "Each audit_qa item must contain question and answer. "
+            "Each jurisdiction_risks item must contain jurisdiction, framework, status, summary. "
+            "Do not return markdown."
+        ),
+        json.dumps(
+            {
+                "domain": audit_payload.get("domain"),
+                "metrics": audit_payload.get("fairness_metrics"),
+                "candidate_flags": audit_payload.get("candidate_flags", []),
+                "counterfactuals": audit_payload.get("counterfactuals", []),
+                "sdg_mapping": audit_payload.get("sdg_mapping", {}),
+                "shap_top3": audit_payload.get("shap_top3", []),
+                "causal_pathway": audit_payload.get("causal_pathway"),
+            }
+        ),
+    )
+    decoded = _generate_json(prompt, fallback)
+    return {
+        "explanation": decoded.get("explanation", fallback["explanation"]),
+        "recommendations": decoded.get("recommendations", fallback["recommendations"]),
+        "legal_risk": decoded.get("legal_risk", fallback["legal_risk"]),
+        "audit_qa": decoded.get("audit_qa", fallback["audit_qa"]),
+        "jurisdiction_risks": decoded.get("jurisdiction_risks", fallback["jurisdiction_risks"]),
+    }
+
+
+def explain_flagged_candidate(candidate_payload: dict[str, Any], domain: str) -> str:
+    fallback = (
+        f"This {domain} decision was flagged because the strongest feature contributions point to "
+        f"{', '.join(candidate_payload.get('primary_drivers', [])[:2]) or 'proxy-heavy attributes'}. "
+        "That matters because a manager could reject a person for reasons correlated with protected status rather than merit. "
+        "The safest next step is to review the case with a human decision-maker before taking action."
+    )
+    prompt = _system_prompt(
+        (
+            "You are explaining one flagged fairness case to a non-technical HR manager. "
+            "Return exactly 3 sentences in plain English. "
+            "Do not use bullets, headings, or legal jargon."
+        ),
+        json.dumps({"domain": domain, "candidate": candidate_payload}),
+    )
+    client = _client()
+    if client is None:
+        return fallback
+    try:
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+        text = (response.text or "").strip()
+        return text or fallback
+    except Exception:
+        return fallback
+
+
+def generate_proxy_explanation(feature_name: str, shap_importance: float, domain: str) -> str:
+    fallback = (
+        f"{feature_name} carries a SHAP importance of {shap_importance:.3f} and may be acting as a proxy because "
+        "it sits close to a protected attribute in the causal graph."
+    )
+    prompt = _system_prompt(
+        (
+            "Return exactly one sentence in plain English explaining why a feature may act as a proxy for a protected attribute. "
+            "Do not use markdown."
+        ),
+        json.dumps(
+            {
+                "feature_name": feature_name,
+                "shap_importance": round(shap_importance, 6),
+                "domain": domain,
+            }
+        ),
+    )
+    client = _client()
+    if client is None:
+        return fallback
+    try:
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+        text = (response.text or "").strip()
+        return text or fallback
+    except Exception:
+        return fallback
+
+
+def _fallback_stream_answer(audit_payload: dict[str, Any], question: str) -> str:
+    top_feature = ", ".join(audit_payload.get("shap_top3", [])[:2]) or "the highest-impact features"
+    if "legal" in question.lower() or "compliant" in question.lower():
+        return _fallback_legal_risk(audit_payload)
+    return (
+        f"Based on this audit, {top_feature} are the most influential drivers of the current bias pattern. "
+        "The fairness metrics and SDG mapping show where the release is closest to a policy threshold. "
+        "A reviewer should check mitigation steps before trusting the model in production."
+    )
+
+
+def stream_audit_answer(audit_payload: dict[str, Any], question: str) -> Iterator[str]:
+    prompt = _system_prompt(
+        (
+            "Answer one audit question for a non-technical reviewer. "
+            "Return plain text only. Keep the answer concise, accurate, and grounded in the provided audit JSON."
+        ),
+        json.dumps({"question": question, "audit": audit_payload}),
+    )
+    client = _client()
+    if client is None:
+        text = _fallback_stream_answer(audit_payload, question)
+        for token in text.split():
+            yield token + " "
+        return
+
+    try:
+        for chunk in client.models.generate_content_stream(model=MODEL_NAME, contents=prompt):
+            text = getattr(chunk, "text", "") or ""
+            if text:
+                yield text
+    except Exception:
+        text = _fallback_stream_answer(audit_payload, question)
+        for token in text.split():
+            yield token + " "
