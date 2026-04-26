@@ -26,8 +26,8 @@ class _GeminiCardState extends State<GeminiCard>
     _typingController = AnimationController(
       vsync: this,
       duration: Duration(
-        milliseconds: ((widget.explanation.length * 22).clamp(1000, 4200))
-            .toInt(),
+        milliseconds:
+            ((widget.explanation.length * 22).clamp(1000, 4200)).toInt(),
       ),
     )..forward();
   }
@@ -37,8 +37,8 @@ class _GeminiCardState extends State<GeminiCard>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.explanation != widget.explanation) {
       _typingController.duration = Duration(
-        milliseconds: ((widget.explanation.length * 22).clamp(1000, 4200))
-            .toInt(),
+        milliseconds:
+            ((widget.explanation.length * 22).clamp(1000, 4200)).toInt(),
       );
       _typingController
         ..reset()
@@ -57,7 +57,7 @@ class _GeminiCardState extends State<GeminiCard>
         (widget.explanation.length * _typingController.value).floor().clamp(
               0,
               widget.explanation.length,
-            ) as int;
+            );
     return widget.explanation.substring(0, count);
   }
 
@@ -188,8 +188,7 @@ class _GeminiCardState extends State<GeminiCard>
                                     duration: const Duration(milliseconds: 220),
                                     child: Icon(
                                       Icons.keyboard_arrow_down_rounded,
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                       semanticLabel:
                                           'Expand plain English explanation',
                                     ),

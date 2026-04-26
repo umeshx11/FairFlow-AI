@@ -24,7 +24,7 @@ class AuthSession {
 
 class AuthService {
   AuthService._() {
-    _firebaseSubscription = _auth.authStateChanges().listen((_) {
+    _auth.authStateChanges().listen((_) {
       _emitCurrentSession();
     });
   }
@@ -34,7 +34,6 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final StreamController<AuthSession?> _sessionController =
       StreamController<AuthSession?>.broadcast();
-  late final StreamSubscription<User?> _firebaseSubscription;
   Map<String, dynamic>? _preloadedGuestAudit;
 
   Stream<AuthSession?> get authStateChanges async* {
@@ -110,10 +109,12 @@ class AuthService {
 
   Future<void> signOut() async {
     _preloadedGuestAudit = null;
-    await Future.wait([
-      GoogleSignIn().signOut().catchError((_) {}),
-      _auth.signOut().catchError((_) {}),
-    ]);
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+    try {
+      await _auth.signOut();
+    } catch (_) {}
     _emitCurrentSession();
   }
 }
