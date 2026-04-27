@@ -35,6 +35,12 @@ class _ReportScreenState extends State<ReportScreen> {
     if (value is DateTime) {
       return DateFormat.yMMMd().add_jm().format(value);
     }
+    if (value is String) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) {
+        return DateFormat.yMMMd().add_jm().format(parsed.toLocal());
+      }
+    }
     return value?.toString() ?? 'Unknown date';
   }
 
