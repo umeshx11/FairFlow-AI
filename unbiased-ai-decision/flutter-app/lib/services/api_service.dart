@@ -26,6 +26,7 @@ class ApiService {
     PlatformFile? modelFile,
     required String modelName,
     required String userId,
+    required String domain,
     String? auditId,
   }) async {
     final request = http.MultipartRequest(
@@ -33,7 +34,8 @@ class ApiService {
       Uri.parse('$baseUrl/audit'),
     )
       ..fields['model_name'] = modelName
-      ..fields['user_id'] = userId;
+      ..fields['user_id'] = userId
+      ..fields['domain'] = domain;
     if (auditId != null) {
       request.fields['audit_id'] = auditId;
     }

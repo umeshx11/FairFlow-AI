@@ -1,43 +1,70 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'api_service.dart';
+import 'app_runtime.dart';
 
 class FirebaseService {
   FirebaseService._();
 
   static final FirebaseService instance = FirebaseService._();
 
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  static const String sampleAuditId = 'sample_hiring_audit';
+
+  final FirebaseFirestore? _firestore =
+      AppRuntime.firebaseWebConfigured ? FirebaseFirestore.instance : null;
 
   CollectionReference<Map<String, dynamic>> get audits =>
-      firestore.collection('audits');
+      _firestore!.collection('audits');
 
-  String createAuditId() => audits.doc().id;
+  bool get usesFirestore => _firestore != null;
 
-  Future<Map<String, dynamic>> fetchSampleAudit() async {
-    final snapshot = await audits.doc('sample_hiring_audit').get();
-    if (!snapshot.exists) {
-      try {
-        return await ApiService.instance.fetchAudit('sample_hiring_audit');
-      } catch (_) {
-        throw Exception('Firestore sample_hiring_audit is not seeded.');
-      }
+  String createAuditId() {
+    if (_firestore != null) {
+      return audits.doc().id;
     }
-    return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
+    return 'local-${DateTime.now().microsecondsSinceEpoch}';
   }
 
-  Future<Map<String, dynamic>?> fetchAuditById(String auditId) async {
-    final snapshot = await audits.doc(auditId).get();
+  Future<Map<String, dynamic>> fetchSampleAudit() async {
+    if (_firestore == null) {
+      return ApiService.instance.fetchAudit(sampleAuditId);
+    }
+
+    final snapshot = await audits.doc(sampleAuditId).get();
     if (snapshot.exists) {
       return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
     }
-    return ApiService.instance.fetchAudit(auditId);
+
+    try {
+      return await ApiService.instance.fetchAudit(sampleAuditId);
+    } catch (_) {
+      throw Exception('Sample audit is not seeded yet.');
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchAuditById(String auditId) async {
+    if (_firestore == null) {
+      return ApiService.instance.fetchAudit(auditId);
+    }
+
+    final snapshot = await audits.doc(auditId).get();
+    if (!snapshot.exists) {
+      return ApiService.instance.fetchAudit(auditId);
+    }
+    return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
   }
 
   Future<List<Map<String, dynamic>>> fetchRecentAudits(
     String userId, {
     int limit = 5,
   }) async {
+    if (_firestore == null) {
+      final history = await ApiService.instance.fetchAuditHistory(userId);
+      return history.take(limit).toList(growable: false);
+    }
+
     final query = await audits
         .where('user_id', isEqualTo: userId)
         .orderBy('created_at', descending: true)
@@ -47,6 +74,10 @@ class FirebaseService {
   }
 
   Stream<Map<String, dynamic>?> streamAudit(String auditId) {
+    if (_firestore == null) {
+      return _pollAudit(auditId);
+    }
+
     return audits.doc(auditId).snapshots().map((snapshot) {
       if (!snapshot.exists) {
         return null;
@@ -59,6 +90,10 @@ class FirebaseService {
     String userId, {
     int limit = 20,
   }) {
+    if (_firestore == null) {
+      return _pollAuditHistory(userId, limit: limit);
+    }
+
     return audits
         .where('user_id', isEqualTo: userId)
         .orderBy('created_at', descending: true)
@@ -69,6 +104,43 @@ class FirebaseService {
               .map((doc) => _withId(doc.data(), doc.id))
               .toList(growable: false),
         );
+  }
+
+  Stream<Map<String, dynamic>?> _pollAudit(String auditId) async* {
+    var misses = 0;
+    while (true) {
+      try {
+        final audit = await fetchAuditById(auditId);
+        if (audit != null) {
+          misses = 0;
+          yield audit;
+          final status = audit['status']?.toString() ?? '';
+          final stage = audit['stage']?.toString() ?? '';
+          if (status == 'completed' ||
+              status == 'failed' ||
+              stage == 'complete' ||
+              stage == 'failed') {
+            return;
+          }
+        }
+      } catch (_) {
+        misses += 1;
+        if (misses >= 10) {
+          return;
+        }
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+  }
+
+  Stream<List<Map<String, dynamic>>> _pollAuditHistory(
+    String userId, {
+    int limit = 20,
+  }) async* {
+    while (true) {
+      yield await fetchRecentAudits(userId, limit: limit);
+      await Future.delayed(const Duration(seconds: 2));
+    }
   }
 
   Future<Map<String, dynamic>> computeDashboardSummary(

@@ -113,6 +113,7 @@ class _LoginScreenState extends State<LoginScreen>
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
     final bool isDark = theme.brightness == Brightness.dark;
+    final bool googleAvailable = AuthService.instance.googleSignInAvailable;
 
     return Scaffold(
       body: DecoratedBox(
@@ -271,10 +272,23 @@ class _LoginScreenState extends State<LoginScreen>
                                   const SizedBox(height: 28),
                                   _GoogleSignInButton(
                                     loading: _loadingGoogle,
-                                    onPressed: _loadingGoogle || _loadingGuest
+                                    onPressed: !googleAvailable ||
+                                            _loadingGoogle ||
+                                            _loadingGuest
                                         ? null
                                         : _signInWithGoogle,
                                   ),
+                                  if (!googleAvailable) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Local demo mode is active. Add real Firebase web keys to enable Google sign-in.',
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: isDark
+                                            ? Colors.white.withOpacity(0.72)
+                                            : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 18),
                                   Row(
                                     children: [
