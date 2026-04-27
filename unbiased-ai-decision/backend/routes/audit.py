@@ -6,9 +6,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from starlette.concurrency import run_in_threadpool
 
 from audit_repository import fetch_audit_payload, fetch_user_history
-from firebase_config import require_firestore
 from gemini_explainer import generate_gemini_insights
 from models.audit_result import AuditResult, FairnessMetrics
 from schemas import DomainName
@@ -66,13 +66,13 @@ async def _persist_upload(upload_file: UploadFile, destination: Path) -> Path:
 @router.post("/audit", response_model=AuditResult)
 async def create_audit(
     dataset_file: UploadFile = File(...),
+    model_file: UploadFile | None = File(None),
     model_name: str = Form(...),
     user_id: str = Form(...),
     domain: DomainName = Form(...),
     organization_name: str = Form("FairFlow Demo Organization"),
     audit_id: str | None = Form(None),
 ):
-    require_firestore()
     if not dataset_file.filename or not dataset_file.filename.lower().endswith(".csv"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -97,7 +97,8 @@ async def create_audit(
         update_audit_status(document_id, stage, audit_status)
 
     try:
-        audit_result = run_bias_analysis(
+        audit_result = await run_in_threadpool(
+            run_bias_analysis,
             dataset_path=str(dataset_path),
             domain=domain,
             audit_id=document_id,
@@ -118,7 +119,7 @@ async def create_audit(
     audit_result["status"] = "completed"
     audit_result["stage"] = "applying_mitigation"
     publish("applying_mitigation")
-    gemini_insights = generate_gemini_insights(audit_result)
+    gemini_insights = await run_in_threadpool(generate_gemini_insights, audit_result)
     audit_result["gemini_explanation"] = gemini_insights["explanation"]
     audit_result["gemini_recommendations"] = gemini_insights["recommendations"]
     audit_result["gemini_legal_risk"] = gemini_insights["legal_risk"]
@@ -134,7 +135,6 @@ async def create_audit(
 
 @router.get("/audit/{audit_id}", response_model=AuditResult)
 def get_audit(audit_id: str):
-    require_firestore()
     try:
         payload = fetch_audit_payload(audit_id)
     except KeyError as exc:
@@ -144,5 +144,4 @@ def get_audit(audit_id: str):
 
 @router.get("/audit/history/{user_id}")
 def get_audit_history(user_id: str):
-    require_firestore()
     return fetch_user_history(user_id, limit=20)

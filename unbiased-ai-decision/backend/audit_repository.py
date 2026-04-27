@@ -6,9 +6,15 @@ from typing import Any
 from firebase_admin import firestore
 
 from firebase_config import require_firestore
+from local_audit_store import (
+    fetch_local_audit_payload,
+    list_local_audits,
+    local_store_enabled,
+    resolve_audit_ids,
+)
 
 
-def serialize_firestore_payload(payload: dict[str, Any], document_id: str) -> dict[str, Any]:
+def normalize_audit_payload(payload: dict[str, Any], document_id: str) -> dict[str, Any]:
     created_at = payload.get("created_at") or datetime.now(timezone.utc)
     return {
         "audit_id": document_id,
@@ -50,13 +56,25 @@ def serialize_firestore_payload(payload: dict[str, Any], document_id: str) -> di
 
 
 def fetch_audit_payload(audit_id: str) -> dict[str, Any]:
-    snapshot = require_firestore().collection("audits").document(audit_id).get()
-    if not snapshot.exists:
-        raise KeyError(audit_id)
-    return serialize_firestore_payload(snapshot.to_dict() or {}, snapshot.id)
+    if local_store_enabled():
+        payload = fetch_local_audit_payload(audit_id)
+        document_id = str(payload.get("audit_id") or audit_id)
+        return normalize_audit_payload(payload, document_id)
+
+    for candidate in resolve_audit_ids(audit_id):
+        snapshot = require_firestore().collection("audits").document(candidate).get()
+        if snapshot.exists:
+            return normalize_audit_payload(snapshot.to_dict() or {}, snapshot.id)
+    raise KeyError(audit_id)
 
 
 def fetch_user_history(user_id: str, limit: int = 20) -> list[dict[str, Any]]:
+    if local_store_enabled():
+        return [
+            normalize_audit_payload(item, str(item.get("audit_id") or ""))
+            for item in list_local_audits(user_id, limit=limit)
+        ]
+
     docs = (
         require_firestore()
         .collection("audits")
@@ -65,4 +83,4 @@ def fetch_user_history(user_id: str, limit: int = 20) -> list[dict[str, Any]]:
         .limit(limit)
         .stream()
     )
-    return [serialize_firestore_payload(snapshot.to_dict() or {}, snapshot.id) for snapshot in docs]
+    return [normalize_audit_payload(snapshot.to_dict() or {}, snapshot.id) for snapshot in docs]

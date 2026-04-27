@@ -33,8 +33,7 @@ def validate_runtime_configuration() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     validate_runtime_configuration()
-    if firebase_admin_configured():
-        ensure_sample_audits()
+    ensure_sample_audits()
     yield
 
 

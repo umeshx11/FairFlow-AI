@@ -10,6 +10,8 @@ from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 from audit_support import attach_certificate_fields
 from bias_analyzer import analyze_bias, prepare_audit_dataset
 from firebase_config import require_firestore
+from local_audit_store import local_store_enabled, upsert_local_audit
+from runtime_config import has_real_env_value
 from schemas import DomainName
 from vertex_model import (
     cleanup_bundle,
@@ -26,10 +28,10 @@ def vertex_status() -> str:
     if not vertex_sdk_available():
         return "not_configured"
     required = (
-        os.getenv("VERTEX_PROJECT_ID", "").strip(),
-        os.getenv("VERTEX_REGION", "").strip(),
-        os.getenv("VERTEX_STAGING_BUCKET", "").strip(),
-        os.getenv("VERTEX_MODEL_BUCKET", "").strip(),
+        has_real_env_value("VERTEX_PROJECT_ID"),
+        has_real_env_value("VERTEX_REGION"),
+        has_real_env_value("VERTEX_STAGING_BUCKET"),
+        has_real_env_value("VERTEX_MODEL_BUCKET"),
     )
     return "ready" if all(required) else "not_configured"
 
@@ -77,8 +79,20 @@ def run_bias_analysis(
 
 
 def create_audit_record(user_id: str, audit_id: str | None, payload: dict[str, Any]) -> str:
-    firestore_client = require_firestore()
     document_id = audit_id or str(uuid4())
+    if local_store_enabled():
+        upsert_local_audit(
+            document_id,
+            {
+                "user_id": user_id,
+                "status": "processing",
+                "stage": "uploading",
+                **payload,
+            },
+        )
+        return document_id
+
+    firestore_client = require_firestore()
     firestore_client.collection("audits").document(document_id).set(
         {
             "user_id": user_id,
@@ -99,6 +113,17 @@ def update_audit_status(
     status: str = "processing",
     extra: dict[str, Any] | None = None,
 ) -> None:
+    if local_store_enabled():
+        upsert_local_audit(
+            audit_id,
+            {
+                "status": status,
+                "stage": stage,
+                **(extra or {}),
+            },
+        )
+        return
+
     firestore_client = require_firestore()
     firestore_client.collection("audits").document(audit_id).set(
         {
@@ -112,6 +137,7 @@ def update_audit_status(
 
 
 def store_audit_result(user_id: str, result_dict: dict[str, Any], audit_id: str | None = None) -> str:
+    document_id = audit_id or str(uuid4())
     payload = {
         "user_id": user_id,
         "organization_name": result_dict.get("organization_name", "FairFlow Demo Organization"),
@@ -147,6 +173,10 @@ def store_audit_result(user_id: str, result_dict: dict[str, Any], audit_id: str 
         "created_at": result_dict.get("created_at"),
     }
     payload = attach_certificate_fields(payload)
+
+    if local_store_enabled():
+        upsert_local_audit(document_id, payload)
+        return document_id
 
     firestore_client = require_firestore()
     collection = firestore_client.collection("audits")

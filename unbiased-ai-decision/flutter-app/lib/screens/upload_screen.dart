@@ -23,6 +23,7 @@ class _UploadScreenState extends State<UploadScreen> {
   final TextEditingController _modelNameController = TextEditingController();
   bool _loading = false;
   String? _activeAuditId;
+  String _selectedDomain = 'hiring';
 
   Future<void> _pickDataset() async {
     final result = await FilePicker.platform.pickFiles(
@@ -68,6 +69,7 @@ class _UploadScreenState extends State<UploadScreen> {
             ? 'Uploaded Decision Model'
             : _modelNameController.text.trim(),
         userId: session.uid,
+        domain: _selectedDomain,
         auditId: auditId,
       );
       if (!mounted) return;
@@ -225,6 +227,42 @@ class _UploadScreenState extends State<UploadScreen> {
               meta: _fileSize(_modelFile!),
             ),
           ],
+          const SizedBox(height: 24),
+          Text(
+            'Domain',
+            style: theme.textTheme.titleMedium,
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _selectedDomain,
+            items: const [
+              DropdownMenuItem(
+                value: 'hiring',
+                child: Text('Hiring'),
+              ),
+              DropdownMenuItem(
+                value: 'lending',
+                child: Text('Lending'),
+              ),
+              DropdownMenuItem(
+                value: 'medical',
+                child: Text('Medical'),
+              ),
+            ],
+            onChanged: _loading
+                ? null
+                : (value) {
+                    if (value == null) return;
+                    setState(() => _selectedDomain = value);
+                  },
+            decoration: const InputDecoration(
+              helperText: 'Choose the schema that matches your CSV columns.',
+              prefixIcon: Icon(
+                Icons.category_outlined,
+                semanticLabel: 'Audit domain',
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           Text(
             'Model Name',

@@ -139,6 +139,12 @@ class _HomeScreenState extends State<HomeScreen>
     if (value is DateTime) {
       return DateFormat.yMMMd().format(value);
     }
+    if (value is String) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) {
+        return DateFormat.yMMMd().format(parsed.toLocal());
+      }
+    }
     return value.toString();
   }
 

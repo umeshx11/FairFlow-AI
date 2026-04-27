@@ -26,7 +26,7 @@ Additional live mappings returned by the backend:
 
 - Google tech integration: Firebase Auth, Firestore, Vertex AI, and Gemini integration are implemented in `backend/` and `flutter-app/`
 - Flutter mobile app: the product is a Flutter mobile/web app in [`flutter-app/`](flutter-app)
-- Demo-ready guest mode: the app requires Firebase anonymous sign-in and the seeded Firestore sample audit, so judges stay on the Google-backed path
+- Demo-ready guest mode: the app can run as a true local guest demo without Firebase web config, while still supporting Firebase-backed guest and Google sign-in flows when configured
 - 3 documented user tests: see [`user-tests/test_1_recruiter_tool.md`](user-tests/test_1_recruiter_tool.md), [`user-tests/test_2_loan_model.md`](user-tests/test_2_loan_model.md), and [`user-tests/test_3_medical_triage.md`](user-tests/test_3_medical_triage.md)
 - SDG targets cited by number: SDG 10.3, SDG 8.5, and SDG 16.b are surfaced in the UI, backend payloads, and documentation
 - Community impact story: see [`IMPACT_STORY.md`](IMPACT_STORY.md)
@@ -45,9 +45,10 @@ Additional live mappings returned by the backend:
 
 Local demo behavior:
 
-- Guest/demo mode uses Firebase anonymous auth plus Firestore sample data
-- Backend audit processing writes live Firestore stages: `uploading`, `uploaded`, `preparing_features`, `calling_vertex_endpoint`, `generating_shap`, `generating_gemini`, and `complete`
-- If Firebase or Firestore is not configured, guest mode fails closed instead of showing a local non-Google demo path
+- Guest/demo mode works without Firebase web config by using the backend sample audit and local audit storage
+- If Firebase Admin credentials are configured, audit records are stored in Firestore; otherwise the backend transparently falls back to a local JSON store
+- Vertex AI stays off unless `USE_VERTEX_AI=true`
+- Backend audit processing still reports live stages such as `uploading`, `uploaded`, `preparing_features`, `generating_shap`, `generating_gemini`, and `complete`
 
 ### Deployed demo
 
@@ -112,25 +113,26 @@ unbiased-ai-decision/
 
 1. Clone the repository.
 2. Copy `.env.example` to `.env`.
-3. Fill in Firebase, Vertex AI endpoint, and Gemini values.
-4. Start the app:
+3. For a local-only demo, keep `USE_VERTEX_AI=false`, leave the cloud placeholders in place, and set `FLUTTER_API_BASE_URL=http://localhost:8080`.
+4. For Firebase-backed auth/storage or Gemini/Vertex features, replace the remaining placeholder values with real project credentials.
+5. Start the app:
 
 ```bash
 cd docker
 docker compose up --build
 ```
 
-5. Open the app at `http://localhost:3000`.
-6. Open the backend health endpoint at `http://localhost:8080/health` to confirm service status.
-7. Use `Try as Guest - no sign-up needed` from the login screen.
+6. Open the app at `http://localhost:3000`.
+7. Open the backend health endpoint at `http://localhost:8080/health` to confirm service status.
+8. Use `Try as Guest - no sign-up needed` from the login screen.
 
-Required sample seeding for guest demos:
+Optional sample seeding for Firebase-backed demos:
 
 ```bash
 python backend/seed_sample_audit.py
 ```
 
-The guest flow expects the `sample_hiring_audit` Firestore document. Run the seeding command after Firebase credentials are configured.
+The backend auto-seeds the local sample audit on startup when Firebase Admin is not configured. Run the seeding command only when you want the `sample_hiring_audit` document written into Firestore.
 
 ## Environment variables
 
@@ -138,7 +140,7 @@ See [`.env.example`](.env.example) for the full set. The main groups are:
 
 - Firebase service account and web app config
 - Gemini API key
-- Vertex AI project, region, staging bucket, and endpoint ID
+- Vertex AI toggle, project, region, staging bucket, and model bucket
 - Flutter backend base URL
 
 ## Backend API
@@ -160,7 +162,7 @@ gcloud run deploy unbiased-ai \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=...,FIREBASE_...=...,VERTEX_ENDPOINT_ID=...,REQUIRE_VERTEX_ENDPOINT=true
+  --set-env-vars GEMINI_API_KEY=...,FIREBASE_API_KEY=...,FIREBASE_APP_ID=...,FIREBASE_MESSAGING_SENDER_ID=...,FIREBASE_PROJECT_ID=...,FIREBASE_AUTH_DOMAIN=...,FIREBASE_STORAGE_BUCKET=...,FIREBASE_CREDENTIALS_JSON=...,USE_VERTEX_AI=true,VERTEX_PROJECT_ID=...,VERTEX_REGION=us-central1,VERTEX_STAGING_BUCKET=...,VERTEX_MODEL_BUCKET=...
 ```
 
 After deployment, update:

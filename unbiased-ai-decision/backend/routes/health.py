@@ -7,6 +7,7 @@ from fastapi import APIRouter
 
 from firebase_config import firebase_status
 from gemini_explainer import gemini_sdk_available
+from runtime_config import has_real_env_value
 from vertex_pipeline import vertex_status
 
 
@@ -18,7 +19,7 @@ def health_check():
     firebase_services = firebase_status()
     gemini_state = (
         "ready"
-        if os.getenv("GEMINI_API_KEY") and gemini_sdk_available()
+        if has_real_env_value("GEMINI_API_KEY") and gemini_sdk_available()
         else "not_configured"
     )
     return {

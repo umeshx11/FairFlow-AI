@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../services/auth_service.dart';
 import '../services/firebase_service.dart';
@@ -15,6 +16,19 @@ class HistoryScreen extends StatelessWidget {
       return const Color(0xFFF59E0B);
     }
     return const Color(0xFFDC2626);
+  }
+
+  String _formatDate(dynamic value) {
+    if (value is DateTime) {
+      return DateFormat.yMMMd().add_jm().format(value);
+    }
+    if (value is String) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) {
+        return DateFormat.yMMMd().add_jm().format(parsed.toLocal());
+      }
+    }
+    return value?.toString() ?? 'Unknown date';
   }
 
   @override
@@ -71,7 +85,7 @@ class HistoryScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18)),
                 tileColor: Colors.white,
                 title: Text('${audit['model_name'] ?? 'Untitled model'}'),
-                subtitle: Text('${audit['created_at'] ?? 'Unknown date'}'),
+                subtitle: Text(_formatDate(audit['created_at'])),
                 trailing: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

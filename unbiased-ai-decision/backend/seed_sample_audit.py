@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timezone
 
 from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
 from audit_support import attach_certificate_fields
 from firebase_config import require_firestore
+from local_audit_store import local_audit_exists, local_store_enabled, upsert_local_audit
 from sdg_mapping import build_sdg_mapping
 
 
@@ -20,7 +22,7 @@ def _base_metrics(parity: float, odds: float, fairness: float, calibration: floa
 
 
 SAMPLE_AUDITS: dict[str, dict[str, object]] = {
-    "sample_audit": {
+    "sample_hiring_audit": {
         "organization_name": "FairFlow Demo Hiring",
         "model_name": "Resume Screening Model v2",
         "dataset_name": "demo_hiring_candidates.csv",
@@ -226,12 +228,25 @@ def _hydrate_payload(document_id: str, payload: dict[str, object]) -> dict[str, 
         "individual_fairness": fairness_metrics["individual_fairness"],
         "calibration_error": fairness_metrics["calibration_error"],
         "sdg_mapping": build_sdg_mapping(fairness_metrics),
-        "created_at": SERVER_TIMESTAMP,
+        "created_at": datetime.now(timezone.utc)
+        if local_store_enabled()
+        else SERVER_TIMESTAMP,
     }
     return attach_certificate_fields(shaped)
 
 
 def ensure_sample_audits() -> None:
+    if local_store_enabled():
+        for document_id, payload in SAMPLE_AUDITS.items():
+            if local_audit_exists(document_id):
+                continue
+            upsert_local_audit(
+                document_id,
+                _hydrate_payload(document_id, payload),
+                merge=False,
+            )
+        return
+
     firestore_client = require_firestore()
     for document_id, payload in SAMPLE_AUDITS.items():
         document = firestore_client.collection("audits").document(document_id)

@@ -9,6 +9,8 @@ import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials, firestore
 
+from runtime_config import has_real_env_value
+
 
 firebase_app = None
 db = None
@@ -16,10 +18,21 @@ auth = firebase_auth
 
 
 def firebase_admin_configured() -> bool:
-    return bool(
-        os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "").strip()
-        or os.getenv("FIREBASE_CREDENTIALS_JSON", "").strip()
-    )
+    service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "").strip()
+    encoded_json = os.getenv("FIREBASE_CREDENTIALS_JSON", "").strip()
+
+    if has_real_env_value("FIREBASE_CREDENTIALS_JSON"):
+        return True
+
+    if not service_account_path:
+        return False
+
+    if service_account_path == "./serviceAccountKey.json" and not os.path.exists(
+        service_account_path
+    ):
+        return False
+
+    return True
 
 
 def _load_firebase_credential():
@@ -27,13 +40,19 @@ def _load_firebase_credential():
     encoded_json = os.getenv("FIREBASE_CREDENTIALS_JSON", "").strip()
 
     if service_account_path:
-        if not os.path.exists(service_account_path):
+        if service_account_path == "./serviceAccountKey.json" and not os.path.exists(
+            service_account_path
+        ):
+            service_account_path = ""
+        elif not os.path.exists(service_account_path):
             raise RuntimeError(
                 f"FIREBASE_SERVICE_ACCOUNT_PATH points to a missing file: {service_account_path}"
             )
+
+    if service_account_path:
         return credentials.Certificate(service_account_path)
 
-    if encoded_json:
+    if has_real_env_value("FIREBASE_CREDENTIALS_JSON"):
         try:
             decoded = base64.b64decode(encoded_json).decode("utf-8")
             payload = json.loads(decoded)
@@ -42,6 +61,18 @@ def _load_firebase_credential():
                 "FIREBASE_CREDENTIALS_JSON must be a base64-encoded Firebase service account JSON payload."
             ) from exc
         return credentials.Certificate(payload)
+
+    if encoded_json:
+        raise RuntimeError(
+            "FIREBASE_CREDENTIALS_JSON is set but still contains a placeholder value."
+        )
+
+    if service_account_path:
+        if not os.path.exists(service_account_path):
+            raise RuntimeError(
+                f"FIREBASE_SERVICE_ACCOUNT_PATH points to a missing file: {service_account_path}"
+            )
+        return credentials.Certificate(service_account_path)
 
     raise RuntimeError(
         "Firebase Admin credentials are required. Set FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_CREDENTIALS_JSON."

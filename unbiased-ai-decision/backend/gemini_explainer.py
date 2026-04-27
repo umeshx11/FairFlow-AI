@@ -10,6 +10,8 @@ try:
 except ImportError:
     genai = None
 
+from runtime_config import has_real_env_value
+
 
 MODEL_NAME = "gemini-1.5-flash"
 
@@ -21,9 +23,9 @@ def gemini_sdk_available() -> bool:
 def _client() -> Any | None:
     if not gemini_sdk_available():
         return None
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
+    if not has_real_env_value("GEMINI_API_KEY"):
         return None
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
     return genai.Client(api_key=api_key)
 
 
