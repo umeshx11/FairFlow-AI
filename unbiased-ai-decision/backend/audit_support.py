@@ -46,7 +46,10 @@ def build_deep_inspection(payload: dict[str, Any]) -> DeepInspectionResponse:
     domain = payload.get("domain", "hiring")
     if domain not in ("hiring", "lending", "medical"):
         domain = "hiring"
-    protected_attributes = set(schema_for_domain(domain)["protected_attributes"])
+    protected_attributes = {str(value) for value in schema_for_domain(domain)["protected_attributes"]}
+    payload_attribute = str(payload.get("protected_attribute_used", "")).strip()
+    if payload_attribute:
+        protected_attributes.add(payload_attribute)
     shap_values = {
         row.get("feature"): float(row.get("value", 0))
         for row in payload.get("shap_values", [])

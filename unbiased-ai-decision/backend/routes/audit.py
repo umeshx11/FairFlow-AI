@@ -5,10 +5,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
 from audit_repository import fetch_audit_payload, fetch_user_history
+from bias_analyzer import detect_available_protected_attributes
 from gemini_explainer import generate_gemini_insights
 from models.audit_result import AuditResult, FairnessMetrics
 from schemas import DomainName
@@ -28,6 +30,10 @@ def _audit_response(payload: dict) -> AuditResult:
         model_name=payload["model_name"],
         dataset_name=payload["dataset_name"],
         domain=payload.get("domain", "hiring"),
+        protected_attribute_used=payload.get(
+            "protected_attribute_used",
+            payload.get("sensitive_attribute", "gender"),
+        ),
         model_family=payload.get("model_family", "unknown"),
         analysis_backend=payload.get("analysis_backend", "local"),
         bias_score=payload["bias_score"],
@@ -79,6 +85,27 @@ async def create_audit(
             detail="dataset_file must be a CSV upload.",
         )
 
+    dataset_path = TMP_DIR / f"{uuid4()}-{dataset_file.filename}"
+    await _persist_upload(dataset_file, dataset_path)
+    try:
+        uploaded_df = await run_in_threadpool(pd.read_csv, dataset_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not parse uploaded dataset: {exc}",
+        ) from exc
+
+    available_protected_attributes = detect_available_protected_attributes(uploaded_df)
+    if not available_protected_attributes:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "No supported protected attribute was found in the uploaded CSV. "
+                "Expected one of: gender, ethnicity, race, caste, religion, disability_status, region, age_group."
+            ),
+        )
+    primary_protected_attribute = available_protected_attributes[0]
+
     document_id = create_audit_record(
         user_id,
         audit_id,
@@ -87,10 +114,9 @@ async def create_audit(
             "model_name": model_name,
             "dataset_name": dataset_file.filename,
             "domain": domain,
+            "protected_attribute_used": primary_protected_attribute,
         },
     )
-    dataset_path = TMP_DIR / f"{uuid4()}-{dataset_file.filename}"
-    await _persist_upload(dataset_file, dataset_path)
     update_audit_status(document_id, "uploading")
 
     def publish(stage: str, audit_status: str = "processing") -> None:
@@ -102,6 +128,7 @@ async def create_audit(
             dataset_path=str(dataset_path),
             domain=domain,
             audit_id=document_id,
+            protected_attribute=primary_protected_attribute,
             status_callback=publish,
         )
     except Exception as exc:
@@ -116,6 +143,7 @@ async def create_audit(
     audit_result["dataset_name"] = dataset_file.filename
     audit_result["user_id"] = user_id
     audit_result["domain"] = domain
+    audit_result["protected_attribute_used"] = primary_protected_attribute
     audit_result["status"] = "completed"
     audit_result["stage"] = "applying_mitigation"
     publish("applying_mitigation")

@@ -20,6 +20,16 @@ except Exception:
 
 
 NON_FEATURE_COLUMNS = {"id", "name", "full_name", "candidate_id", "organization_name"}
+PROTECTED_ATTRIBUTE_PRIORITY = [
+    "gender",
+    "ethnicity",
+    "race",
+    "caste",
+    "religion",
+    "disability_status",
+    "region",
+    "age_group",
+]
 
 
 @dataclass(slots=True)
@@ -94,6 +104,16 @@ def _normalize_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
     return normalized
 
 
+def detect_available_protected_attributes(df: pd.DataFrame) -> list[str]:
+    normalized_columns = {str(column).strip().lower(): str(column).strip() for column in df.columns}
+    detected: list[str] = []
+    for candidate in PROTECTED_ATTRIBUTE_PRIORITY:
+        matched = normalized_columns.get(candidate.lower())
+        if matched:
+            detected.append(matched)
+    return detected
+
+
 def _encode_features(df: pd.DataFrame, feature_columns: list[str]) -> pd.DataFrame:
     encoded = df.copy()
     for column in feature_columns:
@@ -110,13 +130,44 @@ def _row_label(row: pd.Series, row_index: int) -> str:
     return f"row-{row_index + 1}"
 
 
-def prepare_audit_dataset(dataset_path: str, domain: DomainName) -> PreparedDataset:
+def prepare_audit_dataset(
+    dataset_path: str,
+    domain: DomainName,
+    protected_attribute: str | None = None,
+) -> PreparedDataset:
     dataframe = pd.read_csv(dataset_path)
     dataframe.columns = [column.strip() for column in dataframe.columns]
     schema = schema_for_domain(domain)
     target_column = str(schema["target"])
-    feature_columns = [column for column in schema["features"] if column in dataframe.columns]
-    required_columns = set(schema["features"]) | {target_column}
+    available_protected_attributes = detect_available_protected_attributes(dataframe)
+    schema_protected_attributes = [str(column) for column in schema["protected_attributes"]]
+    sensitive_column = (
+        protected_attribute
+        or next((column for column in available_protected_attributes if column in dataframe.columns), None)
+        or next((column for column in schema_protected_attributes if column in dataframe.columns), None)
+    )
+    if sensitive_column is None:
+        raise ValueError(
+            "The uploaded CSV does not include any supported protected attributes. "
+            "Expected one of: gender, ethnicity, race, caste, religion, disability_status, region, age_group."
+        )
+
+    non_protected_schema_features = [
+        str(column)
+        for column in schema["features"]
+        if str(column) not in schema_protected_attributes
+    ]
+    feature_candidates = list(
+        dict.fromkeys(
+            [
+                *non_protected_schema_features,
+                *[column for column in schema_protected_attributes if column in dataframe.columns],
+                sensitive_column,
+            ]
+        )
+    )
+    feature_columns = [column for column in feature_candidates if column in dataframe.columns]
+    required_columns = set(non_protected_schema_features) | {target_column, sensitive_column}
     missing = sorted(required_columns.difference(dataframe.columns))
     if missing:
         raise ValueError(
@@ -125,7 +176,6 @@ def prepare_audit_dataset(dataset_path: str, domain: DomainName) -> PreparedData
 
     normalized = _normalize_dataframe(dataframe)
     normalized[target_column] = _coerce_binary_label(normalized[target_column])
-    sensitive_column = str(schema["protected_attributes"][0])
     protected_binary, protected_mapping = _binarize_sensitive(normalized[sensitive_column])
     encoded = _encode_features(normalized, feature_columns)
     feature_frame = encoded[feature_columns].copy()
@@ -401,6 +451,7 @@ def analyze_bias(
         "candidate_flags": candidate_flags,
         "counterfactuals": counterfactuals,
         "sdg_mapping": build_sdg_mapping(fairness_metrics),
+        "protected_attribute_used": prepared.sensitive_column,
         "target_column": prepared.target_column,
         "sensitive_attribute": prepared.sensitive_column,
         "sensitive_groups": prepared.protected_mapping,

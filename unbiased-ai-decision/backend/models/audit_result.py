@@ -26,6 +26,7 @@ class AuditResult(BaseModel):
     organization_name: str = "FairFlow Demo Organization"
     dataset_name: str
     domain: str = "hiring"
+    protected_attribute_used: str = "gender"
     model_family: str = "unknown"
     analysis_backend: str = "local"
     bias_score: float

@@ -23,6 +23,10 @@ def normalize_audit_payload(payload: dict[str, Any], document_id: str) -> dict[s
         "model_name": payload.get("model_name", ""),
         "dataset_name": payload.get("dataset_name", ""),
         "domain": payload.get("domain", "hiring"),
+        "protected_attribute_used": payload.get(
+            "protected_attribute_used",
+            payload.get("sensitive_attribute", "gender"),
+        ),
         "model_family": payload.get("model_family", "unknown"),
         "analysis_backend": payload.get("analysis_backend", "local"),
         "bias_score": payload.get("bias_score", 0),

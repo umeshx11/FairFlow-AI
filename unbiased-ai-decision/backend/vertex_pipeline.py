@@ -46,9 +46,10 @@ def run_bias_analysis(
     dataset_path: str,
     domain: DomainName,
     audit_id: str,
+    protected_attribute: str | None = None,
     status_callback: Any | None = None,
 ) -> dict[str, Any]:
-    prepared = prepare_audit_dataset(dataset_path, domain)
+    prepared = prepare_audit_dataset(dataset_path, domain, protected_attribute=protected_attribute)
     bundle = train_register_and_deploy(prepared, audit_id)
     try:
         if status_callback is not None:
@@ -144,6 +145,10 @@ def store_audit_result(user_id: str, result_dict: dict[str, Any], audit_id: str 
         "model_name": result_dict.get("model_name", "Unnamed Model"),
         "dataset_name": result_dict.get("dataset_name", "uploaded_dataset.csv"),
         "domain": result_dict.get("domain", "hiring"),
+        "protected_attribute_used": result_dict.get(
+            "protected_attribute_used",
+            result_dict.get("sensitive_attribute", "gender"),
+        ),
         "model_family": result_dict.get("model_family", "unknown"),
         "analysis_backend": result_dict.get("analysis_backend", "local"),
         "bias_score": result_dict.get("bias_score", 0),
