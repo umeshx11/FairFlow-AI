@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from itertools import combinations
 from typing import Any
 
 import numpy as np
 import pandas as pd
-from fairlearn.metrics import MetricFrame, selection_rate
+from fairlearn.metrics import (
+    MetricFrame,
+    false_positive_rate,
+    selection_rate,
+    true_positive_rate,
+)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -13,18 +19,15 @@ from utils import compute_pass_flags, metric_payload
 
 try:
     from aif360.datasets import BinaryLabelDataset
-    from aif360.metrics import BinaryLabelDatasetMetric, ClassificationMetric
 
     AIF360_AVAILABLE = True
 except Exception:
     BinaryLabelDataset = None
-    BinaryLabelDatasetMetric = None
-    ClassificationMetric = None
     AIF360_AVAILABLE = False
 
 
 LABEL_COLUMN = "hired"
-PROTECTED_ATTRIBUTE = "gender"
+PROTECTED_ATTRIBUTES = ("gender",)
 NON_FEATURE_COLUMNS = {"name"}
 COUNTERFACTUAL_PROTECTED_ATTRIBUTES = [
     "gender",
@@ -60,16 +63,46 @@ NEGATIVE_LABEL_TOKENS = {
     "declined",
 }
 
+MALE_GENDER_TOKENS = {"m", "male", "man", "cis_male", "cisgender_male", "boy"}
+FEMALE_GENDER_TOKENS = {"f", "female", "woman", "cis_female", "cisgender_female", "girl"}
+NON_BINARY_GENDER_TOKENS = {
+    "nb",
+    "n_b",
+    "nonbinary",
+    "non_binary",
+    "non-binary",
+    "they_them",
+    "they/them",
+    "enby",
+    "x",
+    "other",
+    "prefer_not_to_say",
+    "prefer-not-to-say",
+    "prefer not to say",
+    "genderqueer",
+    "gender_fluid",
+    "gender-fluid",
+    "agender",
+    "unknown",
+    "",
+}
+
+
+def _protected_attribute_name() -> str:
+    return PROTECTED_ATTRIBUTES[0]
+
 
 def _normalize_label_token(value: Any) -> str:
     return str(value).strip().lower().replace("-", "_").replace(" ", "_")
 
 
-def _normalize_hired_column(series: pd.Series) -> pd.Series:
+def normalize_hired_column(series: pd.Series) -> pd.Series:
     numeric_series = pd.to_numeric(series, errors="coerce")
     if numeric_series.notna().all():
         if not numeric_series.isin([0, 1]).all():
-            invalid_values = sorted(set(numeric_series[~numeric_series.isin([0, 1])].tolist()))[:5]
+            invalid_values = sorted(
+                set(numeric_series[~numeric_series.isin([0, 1])].tolist())
+            )[:5]
             raise ValueError(
                 "Column 'hired' must be binary. Supported values include "
                 "0/1, yes/no, true/false. "
@@ -95,6 +128,9 @@ def _normalize_hired_column(series: pd.Series) -> pd.Series:
     return mapped.astype(int)
 
 
+_normalize_hired_column = normalize_hired_column
+
+
 def _select_test_size(y: pd.Series) -> int | None:
     class_count = int(y.nunique())
     if len(y) < 6 or class_count < 2:
@@ -111,6 +147,17 @@ def _select_test_size(y: pd.Series) -> int | None:
     return test_size
 
 
+def _normalize_gender_value(value: Any) -> str:
+    token = _normalize_label_token(value)
+    if token in MALE_GENDER_TOKENS:
+        return "Male"
+    if token in FEMALE_GENDER_TOKENS:
+        return "Female"
+    if token in NON_BINARY_GENDER_TOKENS:
+        return "Non-binary"
+    return "Non-binary"
+
+
 def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     normalized = df.copy()
     normalized.columns = [column.strip() for column in normalized.columns]
@@ -120,32 +167,14 @@ def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         else:
             normalized[column] = normalized[column].fillna(0)
 
-    if PROTECTED_ATTRIBUTE in normalized.columns:
-        normalized[PROTECTED_ATTRIBUTE] = (
-            normalized[PROTECTED_ATTRIBUTE]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .replace(
-                {
-                    "m": "Male",
-                    "male": "Male",
-                    "man": "Male",
-                    "f": "Female",
-                    "female": "Female",
-                    "woman": "Female",
-                }
-            )
-        )
-        normalized[PROTECTED_ATTRIBUTE] = normalized[PROTECTED_ATTRIBUTE].replace(
-            {"Male": "Male", "Female": "Female"}
-        )
-        normalized[PROTECTED_ATTRIBUTE] = normalized[PROTECTED_ATTRIBUTE].apply(
-            lambda value: value if value in {"Male", "Female"} else "Female"
+    protected_attribute = _protected_attribute_name()
+    if protected_attribute in normalized.columns:
+        normalized[protected_attribute] = normalized[protected_attribute].apply(
+            _normalize_gender_value
         )
 
     if LABEL_COLUMN in normalized.columns:
-        normalized[LABEL_COLUMN] = _normalize_hired_column(normalized[LABEL_COLUMN])
+        normalized[LABEL_COLUMN] = normalize_hired_column(normalized[LABEL_COLUMN])
 
     return normalized
 
@@ -160,6 +189,13 @@ def encode_categorical_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str
             encoder = LabelEncoder()
             encoded[column] = encoder.fit_transform(encoded[column].astype(str))
             encoders[column] = encoder
+    protected_attribute = _protected_attribute_name()
+    if protected_attribute in encoders:
+        encoded.attrs["protected_attribute"] = protected_attribute
+        encoded.attrs["protected_group_labels"] = {
+            int(index): str(label)
+            for index, label in enumerate(encoders[protected_attribute].classes_)
+        }
     return encoded, encoders
 
 
@@ -176,7 +212,7 @@ def build_binary_label_dataset(encoded_df: pd.DataFrame, labels: np.ndarray | No
         unfavorable_label=0,
         df=dataset_df,
         label_names=[LABEL_COLUMN],
-        protected_attribute_names=[PROTECTED_ATTRIBUTE],
+        protected_attribute_names=[_protected_attribute_name()],
     )
 
 
@@ -186,98 +222,118 @@ def _safe_divide(numerator: float, denominator: float) -> float:
     return float(numerator) / float(denominator)
 
 
-def _group_rates(y_true: np.ndarray, y_pred: np.ndarray, protected: np.ndarray, group_value: int) -> dict[str, float]:
-    mask = protected == group_value
-    group_true = y_true[mask]
-    group_pred = y_pred[mask]
-
-    positives = group_true == 1
-    negatives = group_true == 0
-
-    selection = _safe_divide(np.sum(group_pred == 1), len(group_pred))
-    true_positive_rate = _safe_divide(np.sum((group_pred == 1) & positives), np.sum(positives))
-    false_positive_rate = _safe_divide(np.sum((group_pred == 1) & negatives), np.sum(negatives))
-
-    return {
-        "selection_rate": selection,
-        "true_positive_rate": true_positive_rate,
-        "false_positive_rate": false_positive_rate,
-    }
+def _group_label_mapping(encoded_features: pd.DataFrame) -> dict[Any, str]:
+    mapping = encoded_features.attrs.get("protected_group_labels", {})
+    return mapping if isinstance(mapping, dict) else {}
 
 
-def fallback_metrics(encoded_features: pd.DataFrame, y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, Any]:
-    protected = encoded_features[PROTECTED_ATTRIBUTE].to_numpy()
-    privileged = _group_rates(y_true, y_pred, protected, 1)
-    unprivileged = _group_rates(y_true, y_pred, protected, 0)
-
-    selection_frame = MetricFrame(
-        metrics=selection_rate,
+def _metricframe_payload(
+    encoded_features: pd.DataFrame,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+) -> dict[str, Any]:
+    protected_attribute = str(
+        encoded_features.attrs.get("protected_attribute", _protected_attribute_name())
+    )
+    protected = encoded_features[protected_attribute]
+    frame = MetricFrame(
+        metrics={
+            "selection_rate": selection_rate,
+            "true_positive_rate": true_positive_rate,
+            "false_positive_rate": false_positive_rate,
+        },
         y_true=y_true,
         y_pred=y_pred,
         sensitive_features=protected,
     )
-    selection_by_group = selection_frame.by_group.to_dict()
+    by_group = frame.by_group.fillna(0.0)
+    group_mapping = _group_label_mapping(encoded_features)
+
+    def decode_group(group: Any) -> str:
+        if group in group_mapping:
+            return group_mapping[group]
+        try:
+            numeric_group = int(group)
+        except Exception:
+            numeric_group = None
+        if numeric_group is not None and numeric_group in group_mapping:
+            return group_mapping[numeric_group]
+        return str(group)
+
+    selection_by_group = {
+        decode_group(group): round(float(value), 4)
+        for group, value in by_group["selection_rate"].items()
+    }
+    selection_values = list(by_group["selection_rate"].astype(float))
+    tpr_values = list(by_group["true_positive_rate"].astype(float))
+    fpr_values = list(by_group["false_positive_rate"].astype(float))
+
+    best_selection = max(selection_values) if selection_values else 0.0
+    worst_selection = min(selection_values) if selection_values else 0.0
+    best_tpr = max(tpr_values) if tpr_values else 0.0
+    worst_tpr = min(tpr_values) if tpr_values else 0.0
+
+    avg_odds_diff = 0.0
+    groups = list(by_group.index)
+    for left_group, right_group in combinations(groups, 2):
+        left_tpr = float(by_group.loc[left_group, "true_positive_rate"])
+        right_tpr = float(by_group.loc[right_group, "true_positive_rate"])
+        left_fpr = float(by_group.loc[left_group, "false_positive_rate"])
+        right_fpr = float(by_group.loc[right_group, "false_positive_rate"])
+        pair_diff = 0.5 * ((left_fpr - right_fpr) + (left_tpr - right_tpr))
+        if abs(pair_diff) > abs(avg_odds_diff):
+            avg_odds_diff = pair_diff
 
     raw_metrics = {
-        "disparate_impact": _safe_divide(unprivileged["selection_rate"], privileged["selection_rate"]),
-        "stat_parity_diff": unprivileged["selection_rate"] - privileged["selection_rate"],
-        "equal_opp_diff": unprivileged["true_positive_rate"] - privileged["true_positive_rate"],
-        "avg_odds_diff": 0.5
-        * (
-            (unprivileged["false_positive_rate"] - privileged["false_positive_rate"])
-            + (unprivileged["true_positive_rate"] - privileged["true_positive_rate"])
-        ),
-        "group_selection_rates": {str(key): round(float(value), 4) for key, value in selection_by_group.items()},
+        "disparate_impact": _safe_divide(worst_selection, best_selection),
+        "stat_parity_diff": worst_selection - best_selection,
+        "equal_opp_diff": worst_tpr - best_tpr,
+        "avg_odds_diff": avg_odds_diff,
+        "group_selection_rates": selection_by_group,
     }
     raw_metrics["pass_flags"] = compute_pass_flags(raw_metrics)
-    return metric_payload(raw_metrics) | {"group_selection_rates": raw_metrics["group_selection_rates"]}
+    return metric_payload(raw_metrics) | {
+        "group_selection_rates": raw_metrics["group_selection_rates"]
+    }
 
 
-def compute_fairness_metrics(encoded_features: pd.DataFrame, y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, Any]:
-    if not AIF360_AVAILABLE:
-        return fallback_metrics(encoded_features, y_true, y_pred)
+def fallback_metrics(
+    encoded_features: pd.DataFrame,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+) -> dict[str, Any]:
+    return _metricframe_payload(encoded_features, y_true, y_pred)
 
-    try:
-        dataset_df = encoded_features.copy()
-        dataset_df[LABEL_COLUMN] = y_true.astype(int)
-        original_dataset = build_binary_label_dataset(dataset_df)
-        predicted_dataset = original_dataset.copy(deepcopy=True)
-        predicted_dataset.labels = y_pred.astype(int).reshape(-1, 1)
 
-        metric_dataset = BinaryLabelDatasetMetric(
-            predicted_dataset,
-            privileged_groups=[{PROTECTED_ATTRIBUTE: 1}],
-            unprivileged_groups=[{PROTECTED_ATTRIBUTE: 0}],
-        )
-        classification_metric = ClassificationMetric(
-            original_dataset,
-            predicted_dataset,
-            privileged_groups=[{PROTECTED_ATTRIBUTE: 1}],
-            unprivileged_groups=[{PROTECTED_ATTRIBUTE: 0}],
-        )
-
-        raw_metrics = {
-            "disparate_impact": float(metric_dataset.disparate_impact()),
-            "stat_parity_diff": float(metric_dataset.statistical_parity_difference()),
-            "equal_opp_diff": float(classification_metric.equal_opportunity_difference()),
-            "avg_odds_diff": float(classification_metric.average_odds_difference()),
-        }
-        raw_metrics["pass_flags"] = compute_pass_flags(raw_metrics)
-        return metric_payload(raw_metrics)
-    except Exception:
-        return fallback_metrics(encoded_features, y_true, y_pred)
+def compute_fairness_metrics(
+    encoded_features: pd.DataFrame,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+) -> dict[str, Any]:
+    return _metricframe_payload(encoded_features, y_true, y_pred)
 
 
 def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
     normalized_df = normalize_dataframe(df)
     if LABEL_COLUMN not in normalized_df.columns:
         raise ValueError("Dataset must include a 'hired' column.")
-    if PROTECTED_ATTRIBUTE not in normalized_df.columns:
+    protected_attribute = _protected_attribute_name()
+    if protected_attribute not in normalized_df.columns:
         raise ValueError("Dataset must include a 'gender' column.")
 
     encoded_df, encoders = encode_categorical_columns(normalized_df)
-    feature_columns = [column for column in encoded_df.columns if column not in {LABEL_COLUMN, *NON_FEATURE_COLUMNS}]
+    feature_columns = [
+        column
+        for column in encoded_df.columns
+        if column not in {LABEL_COLUMN, *NON_FEATURE_COLUMNS}
+    ]
     X = encoded_df[feature_columns]
+    X.attrs["protected_attribute"] = protected_attribute
+    if protected_attribute in encoders:
+        X.attrs["protected_group_labels"] = {
+            int(index): str(label)
+            for index, label in enumerate(encoders[protected_attribute].classes_)
+        }
     y = encoded_df[LABEL_COLUMN].astype(int)
 
     X_train = X
