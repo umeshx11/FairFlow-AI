@@ -50,9 +50,13 @@ class AuthService {
   User? get currentUser => _auth?.currentUser;
 
   AuthSession? get currentSession {
+    if (_localSession != null) {
+      return _localSession;
+    }
+
     final auth = _auth;
     if (auth == null) {
-      return _localSession;
+      return null;
     }
     return _mapFirebaseUser(auth.currentUser);
   }
@@ -86,6 +90,27 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> _startLocalGuestDemo() async {
+    try {
+      FirebaseService.instance.useLocalDemoMode();
+      _localSession = const AuthSession(
+        uid: 'guest-demo',
+        name: 'Guest',
+        isGuest: true,
+        isFirebaseBacked: false,
+      );
+      _preloadedGuestAudit = await FirebaseService.instance.fetchSampleAudit();
+      _emitCurrentSession();
+      return _preloadedGuestAudit!;
+    } catch (error) {
+      _localSession = null;
+      FirebaseService.instance.useFirestoreWhenAvailable();
+      throw Exception(
+        'Local guest demo could not load the sample audit. $error',
+      );
+    }
+  }
+
   Future<UserCredential> signInWithGoogle() async {
     final auth = _auth;
     if (auth == null) {
@@ -97,7 +122,10 @@ class AuthService {
     if (kIsWeb) {
       final provider = GoogleAuthProvider();
       provider.addScope('email');
-      return auth.signInWithPopup(provider);
+      final credential = await auth.signInWithPopup(provider);
+      _localSession = null;
+      FirebaseService.instance.useFirestoreWhenAvailable();
+      return credential;
     }
 
     final googleUser = await GoogleSignIn(scopes: ['email']).signIn();
@@ -110,46 +138,35 @@ class AuthService {
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
-    return auth.signInWithCredential(credential);
+    final result = await auth.signInWithCredential(credential);
+    _localSession = null;
+    FirebaseService.instance.useFirestoreWhenAvailable();
+    return result;
   }
 
   Future<Map<String, dynamic>?> signInAsGuest() async {
     final auth = _auth;
     if (auth == null) {
-      try {
-        _localSession = const AuthSession(
-          uid: 'guest-demo',
-          name: 'Guest',
-          isGuest: true,
-          isFirebaseBacked: false,
-        );
-        _preloadedGuestAudit = await FirebaseService.instance.fetchSampleAudit();
-        _emitCurrentSession();
-        return _preloadedGuestAudit;
-      } catch (error) {
-        _localSession = null;
-        throw Exception(
-          'Local guest demo could not load the sample audit. $error',
-        );
-      }
+      return _startLocalGuestDemo();
     }
 
     try {
+      _localSession = null;
+      FirebaseService.instance.useFirestoreWhenAvailable();
       await auth.signInAnonymously();
       _preloadedGuestAudit = await FirebaseService.instance.fetchSampleAudit();
-    } catch (error) {
+      _emitCurrentSession();
+      return _preloadedGuestAudit;
+    } catch (_) {
       await auth.signOut().catchError((_) {});
-      throw Exception(
-        'Guest demo requires Firebase anonymous auth and the Firestore sample audit. $error',
-      );
+      return _startLocalGuestDemo();
     }
-    _emitCurrentSession();
-    return _preloadedGuestAudit;
   }
 
   Future<void> signOut() async {
     _preloadedGuestAudit = null;
     _localSession = null;
+    FirebaseService.instance.useFirestoreWhenAvailable();
     try {
       await GoogleSignIn().signOut();
     } catch (_) {}

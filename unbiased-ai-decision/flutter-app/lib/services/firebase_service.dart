@@ -14,27 +14,42 @@ class FirebaseService {
 
   final FirebaseFirestore? _firestore =
       AppRuntime.firebaseWebConfigured ? FirebaseFirestore.instance : null;
+  bool _preferLocalMode = false;
 
   CollectionReference<Map<String, dynamic>> get audits =>
       _firestore!.collection('audits');
 
-  bool get usesFirestore => _firestore != null;
+  bool get usesFirestore => !_shouldUseLocalMode;
+
+  bool get _shouldUseLocalMode => _preferLocalMode || _firestore == null;
+
+  void useLocalDemoMode() {
+    _preferLocalMode = true;
+  }
+
+  void useFirestoreWhenAvailable() {
+    _preferLocalMode = false;
+  }
 
   String createAuditId() {
-    if (_firestore != null) {
+    if (!_shouldUseLocalMode) {
       return audits.doc().id;
     }
     return 'local-${DateTime.now().microsecondsSinceEpoch}';
   }
 
   Future<Map<String, dynamic>> fetchSampleAudit() async {
-    if (_firestore == null) {
+    if (_shouldUseLocalMode) {
       return ApiService.instance.fetchAudit(sampleAuditId);
     }
 
-    final snapshot = await audits.doc(sampleAuditId).get();
-    if (snapshot.exists) {
-      return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
+    try {
+      final snapshot = await audits.doc(sampleAuditId).get();
+      if (snapshot.exists) {
+        return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
+      }
+    } catch (_) {
+      // Fall back to the backend sample audit when Firestore is unavailable.
     }
 
     try {
@@ -45,65 +60,97 @@ class FirebaseService {
   }
 
   Future<Map<String, dynamic>?> fetchAuditById(String auditId) async {
-    if (_firestore == null) {
+    if (_shouldUseLocalMode) {
       return ApiService.instance.fetchAudit(auditId);
     }
 
-    final snapshot = await audits.doc(auditId).get();
-    if (!snapshot.exists) {
-      return ApiService.instance.fetchAudit(auditId);
+    try {
+      final snapshot = await audits.doc(auditId).get();
+      if (snapshot.exists) {
+        return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
+      }
+    } catch (_) {
+      // Fall back to the backend audit lookup when Firestore is unavailable.
     }
-    return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
+
+    return ApiService.instance.fetchAudit(auditId);
   }
 
   Future<List<Map<String, dynamic>>> fetchRecentAudits(
     String userId, {
     int limit = 5,
   }) async {
-    if (_firestore == null) {
+    if (_shouldUseLocalMode) {
       final history = await ApiService.instance.fetchAuditHistory(userId);
       return history.take(limit).toList(growable: false);
     }
 
-    final query = await audits
-        .where('user_id', isEqualTo: userId)
-        .orderBy('created_at', descending: true)
-        .limit(limit)
-        .get();
-    return query.docs.map((doc) => _withId(doc.data(), doc.id)).toList();
+    try {
+      final query = await audits
+          .where('user_id', isEqualTo: userId)
+          .orderBy('created_at', descending: true)
+          .limit(limit)
+          .get();
+      return query.docs.map((doc) => _withId(doc.data(), doc.id)).toList();
+    } catch (_) {
+      final history = await ApiService.instance.fetchAuditHistory(userId);
+      return history.take(limit).toList(growable: false);
+    }
   }
 
   Stream<Map<String, dynamic>?> streamAudit(String auditId) {
-    if (_firestore == null) {
+    if (_shouldUseLocalMode) {
       return _pollAudit(auditId);
     }
 
-    return audits.doc(auditId).snapshots().map((snapshot) {
-      if (!snapshot.exists) {
-        return null;
+    return (() async* {
+      try {
+        final snapshot = await audits.doc(auditId).get();
+        if (!snapshot.exists) {
+          yield* _pollAudit(auditId);
+          return;
+        }
+
+        await for (final liveSnapshot in audits.doc(auditId).snapshots()) {
+          if (!liveSnapshot.exists) {
+            yield null;
+            continue;
+          }
+          yield _withId(
+            liveSnapshot.data() ?? <String, dynamic>{},
+            liveSnapshot.id,
+          );
+        }
+      } catch (_) {
+        yield* _pollAudit(auditId);
       }
-      return _withId(snapshot.data() ?? <String, dynamic>{}, snapshot.id);
-    });
+    })();
   }
 
   Stream<List<Map<String, dynamic>>> streamAuditHistory(
     String userId, {
     int limit = 20,
   }) {
-    if (_firestore == null) {
+    if (_shouldUseLocalMode) {
       return _pollAuditHistory(userId, limit: limit);
     }
 
-    return audits
-        .where('user_id', isEqualTo: userId)
-        .orderBy('created_at', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+    return (() async* {
+      try {
+        final query = audits
+            .where('user_id', isEqualTo: userId)
+            .orderBy('created_at', descending: true)
+            .limit(limit);
+
+        await for (final snapshot in query.snapshots()) {
+          yield snapshot.docs
               .map((doc) => _withId(doc.data(), doc.id))
-              .toList(growable: false),
-        );
+              .toList(growable: false);
+        }
+      } catch (_) {
+        yield* _pollAuditHistory(userId, limit: limit);
+      }
+    })();
   }
 
   Stream<Map<String, dynamic>?> _pollAudit(String auditId) async* {

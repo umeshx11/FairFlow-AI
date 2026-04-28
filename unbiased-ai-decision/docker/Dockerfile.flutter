@@ -14,7 +14,7 @@ COPY flutter-app/pubspec.yaml ./
 RUN flutter config --enable-web && flutter pub get
 
 COPY flutter-app/ ./
-RUN flutter build web --release \
+RUN flutter build web --release --pwa-strategy=none \
     --dart-define=FLUTTER_API_BASE_URL=${FLUTTER_API_BASE_URL} \
     --dart-define=FIREBASE_API_KEY=${FIREBASE_API_KEY} \
     --dart-define=FIREBASE_APP_ID=${FIREBASE_APP_ID} \
