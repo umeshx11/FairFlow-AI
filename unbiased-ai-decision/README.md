@@ -40,13 +40,13 @@ Additional live mappings returned by the backend:
 ### Local demo
 
 - Backend: `http://localhost:8080`
-- Flutter web: `http://localhost:3000`
+- Flutter web: `http://localhost:3000` by default, or `http://localhost:${FLUTTER_WEB_PORT}` when overridden
 - Health check: `http://localhost:8080/health`
 
 Local demo behavior:
 
 - Guest/demo mode works without Firebase web config by using the backend sample audit and local audit storage
-- If Firebase Admin credentials are configured, audit records are stored in Firestore; otherwise the backend transparently falls back to a local JSON store
+- If Firestore is reachable, audit records are stored there; otherwise the backend transparently falls back to a local JSON store
 - Vertex AI stays off unless `USE_VERTEX_AI=true`
 - Backend audit processing still reports live stages such as `uploading`, `uploaded`, `preparing_features`, `generating_shap`, `generating_gemini`, and `complete`
 
@@ -114,17 +114,18 @@ unbiased-ai-decision/
 1. Clone the repository.
 2. Copy `.env.example` to `.env`.
 3. For a local-only demo, keep `USE_VERTEX_AI=false`, leave the cloud placeholders in place, and set `FLUTTER_API_BASE_URL=http://localhost:8080`.
-4. For Firebase-backed auth/storage or Gemini/Vertex features, replace the remaining placeholder values with real project credentials.
-5. Start the app:
+4. If port `3000` is already in use on your machine, set `FLUTTER_WEB_PORT` in `.env` to another free port such as `3003`.
+5. For Firebase-backed auth/storage or Gemini/Vertex features, replace the remaining placeholder values with real project credentials.
+6. Start the app:
 
 ```bash
 cd docker
 docker compose up --build
 ```
 
-6. Open the app at `http://localhost:3000`.
-7. Open the backend health endpoint at `http://localhost:8080/health` to confirm service status.
-8. Use `Try as Guest - no sign-up needed` from the login screen.
+7. Open the app at `http://localhost:3000`, or the port from `FLUTTER_WEB_PORT` if you overrode it.
+8. Open the backend health endpoint at `http://localhost:8080/health` to confirm service status.
+9. Use `Try as Guest - no sign-up needed` from the login screen.
 
 Optional sample seeding for Firebase-backed demos:
 

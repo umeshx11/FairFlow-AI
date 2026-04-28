@@ -15,6 +15,8 @@ from runtime_config import has_real_env_value
 firebase_app = None
 db = None
 auth = firebase_auth
+_firestore_connection_checked = False
+_firestore_unavailable_reason: str | None = None
 
 
 def firebase_admin_configured() -> bool:
@@ -86,6 +88,13 @@ def validate_firebase_environment() -> None:
         )
 
 
+def mark_firestore_unavailable(reason: Exception | str) -> None:
+    global db, _firestore_connection_checked, _firestore_unavailable_reason
+    _firestore_connection_checked = True
+    _firestore_unavailable_reason = str(reason)
+    db = None
+
+
 def initialize_firebase():
     try:
         return firebase_admin.get_app()
@@ -109,11 +118,35 @@ def require_firebase_app():
 
 def require_firestore():
     global db
+    if _firestore_unavailable_reason is not None:
+        raise RuntimeError(_firestore_unavailable_reason)
     if db is None:
         require_firebase_app()
     if db is None:
         raise RuntimeError("Firestore failed to initialize.")
     return db
+
+
+def firestore_available() -> bool:
+    global _firestore_connection_checked
+
+    if not firebase_admin_configured():
+        return False
+
+    if _firestore_unavailable_reason is not None:
+        return False
+
+    if _firestore_connection_checked:
+        return True
+
+    try:
+        list(require_firestore().collections())
+    except Exception as exc:
+        mark_firestore_unavailable(exc)
+        return False
+
+    _firestore_connection_checked = True
+    return True
 
 
 def firebase_status() -> dict[str, Any]:
@@ -124,16 +157,19 @@ def firebase_status() -> dict[str, Any]:
             "details": "Firebase Admin credentials are not configured.",
         }
 
+    firestore_state = "connected" if firestore_available() else "error"
+    details = None if firestore_state == "connected" else _firestore_unavailable_reason
+
     try:
-        list(require_firestore().collections())
-        firestore_state = "connected"
-        details = None
+        require_firebase_app()
+        auth_state = "ready"
     except Exception as exc:
-        firestore_state = "error"
-        details = str(exc)
+        auth_state = "error"
+        if details is None:
+            details = str(exc)
 
     return {
         "firestore": firestore_state,
-        "auth": "ready" if firebase_app else "error",
+        "auth": auth_state,
         "details": details,
     }
