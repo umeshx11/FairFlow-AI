@@ -99,36 +99,95 @@ def _normalize_label_token(value: Any) -> str:
     return str(value).strip().lower().replace("-", "_").replace(" ", "_")
 
 
-def normalize_hired_column(series: pd.Series) -> pd.Series:
+def _column_lookup(columns: pd.Index | list[str] | tuple[str, ...]) -> dict[str, str]:
+    return {_normalize_label_token(column): str(column) for column in columns}
+
+
+def _resolve_column_name(
+    columns: pd.Index | list[str] | tuple[str, ...],
+    requested: str | None,
+    fallback: str | None = None,
+) -> str | None:
+    lookup = _column_lookup(columns)
+    for candidate in (requested, fallback):
+        if not candidate:
+            continue
+        if candidate in columns:
+            return str(candidate)
+        resolved = lookup.get(_normalize_label_token(candidate))
+        if resolved is not None:
+            return resolved
+    return None
+
+
+def _resolve_protected_attributes(
+    columns: pd.Index | list[str] | tuple[str, ...],
+    *,
+    protected_attribute: str | None = None,
+    protected_attributes: list[str] | tuple[str, ...] | None = None,
+) -> list[str]:
+    requested = []
+    if protected_attribute:
+        requested.append(protected_attribute)
+    requested.extend(list(protected_attributes or []))
+    requested.extend(list(PROTECTED_ATTRIBUTES))
+
+    resolved: list[str] = []
+    seen: set[str] = set()
+    for candidate in requested:
+        actual = _resolve_column_name(columns, candidate)
+        if actual is None:
+            continue
+        normalized = _normalize_label_token(actual)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        resolved.append(actual)
+    return resolved
+
+
+def normalize_hired_column(
+    series: pd.Series,
+    *,
+    positive_value: Any = 1,
+    column_name: str = LABEL_COLUMN,
+) -> pd.Series:
     numeric_series = pd.to_numeric(series, errors="coerce")
+    positive_numeric = pd.to_numeric(pd.Series([positive_value]), errors="coerce").iloc[0]
+
     if numeric_series.notna().all():
-        positive_numeric = pd.to_numeric(pd.Series([positive_value]), errors="coerce").iloc[0]
-        if pd.notna(positive_numeric):
-            return numeric_series.apply(lambda value: 1 if float(value) == float(positive_numeric) else 0).astype(int)
-        if not numeric_series.isin([0, 1]).all():
-            invalid_values = sorted(
-                set(numeric_series[~numeric_series.isin([0, 1])].tolist())
-            )[:5]
+        unique_values = sorted({float(value) for value in numeric_series.tolist()})
+        if len(unique_values) > 2:
             raise ValueError(
-                "Outcome column must be binary. Supported values include "
-                "0/1, yes/no, true/false. "
-                f"Found unsupported numeric values: {invalid_values}"
+                f"Column '{column_name}' must be binary. Supported values include "
+                "0/1, yes/no, true/false."
             )
-        return numeric_series.astype(int)
+        if pd.notna(positive_numeric) and float(positive_numeric) in unique_values:
+            return numeric_series.apply(
+                lambda value: 1 if float(value) == float(positive_numeric) else 0
+            ).astype(int)
+        if set(unique_values).issubset({0.0, 1.0}):
+            return numeric_series.astype(int)
+        raise ValueError(
+            f"Column '{column_name}' must be binary. Supported values include "
+            "0/1, yes/no, true/false."
+        )
 
     normalized_tokens = series.map(_normalize_label_token)
+    unique_tokens = {token for token in normalized_tokens.tolist() if token}
     positive_token = _normalize_label_token(positive_value)
+    custom_binary_mapping = positive_token in unique_tokens and len(unique_tokens) <= 2
     mapped = normalized_tokens.map(
         lambda token: 1
         if token in POSITIVE_LABEL_TOKENS or token == positive_token
         else 0
-        if token in NEGATIVE_LABEL_TOKENS
+        if token in NEGATIVE_LABEL_TOKENS or custom_binary_mapping
         else np.nan
     )
     if mapped.isna().any():
         invalid_tokens = sorted(set(normalized_tokens[mapped.isna()].tolist()))[:5]
         raise ValueError(
-            "Outcome column must be binary. Supported values include "
+            f"Column '{column_name}' must be binary. Supported values include "
             "0/1, yes/no, true/false, hired/rejected. "
             f"Found unsupported values: {invalid_tokens}"
         )
@@ -165,23 +224,42 @@ def _normalize_gender_value(value: Any) -> str:
     return "Non-binary"
 
 
-def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def normalize_dataframe(
+    df: pd.DataFrame,
+    *,
+    label_column: str = LABEL_COLUMN,
+    protected_attribute: str | None = None,
+    outcome_positive_value: Any = 1,
+) -> pd.DataFrame:
     normalized = df.copy()
-    normalized.columns = [column.strip() for column in normalized.columns]
+    normalized.columns = [str(column).strip() for column in normalized.columns]
     for column in normalized.columns:
         if normalized[column].dtype == object:
             normalized[column] = normalized[column].fillna("Unknown").astype(str).str.strip()
         else:
             normalized[column] = normalized[column].fillna(0)
 
-    protected_attribute = _protected_attribute_name()
-    if protected_attribute in normalized.columns:
-        normalized[protected_attribute] = normalized[protected_attribute].apply(
+    resolved_label_column = _resolve_column_name(normalized.columns, label_column, LABEL_COLUMN)
+    resolved_protected_attribute = _resolve_column_name(
+        normalized.columns,
+        protected_attribute,
+        _protected_attribute_name(),
+    )
+
+    if (
+        resolved_protected_attribute is not None
+        and _normalize_label_token(resolved_protected_attribute) == "gender"
+    ):
+        normalized[resolved_protected_attribute] = normalized[resolved_protected_attribute].apply(
             _normalize_gender_value
         )
 
-    if LABEL_COLUMN in normalized.columns:
-        normalized[LABEL_COLUMN] = normalize_hired_column(normalized[LABEL_COLUMN])
+    if resolved_label_column is not None:
+        normalized[resolved_label_column] = normalize_hired_column(
+            normalized[resolved_label_column],
+            positive_value=outcome_positive_value,
+            column_name=resolved_label_column,
+        )
 
     return normalized
 
@@ -193,21 +271,27 @@ def encode_categorical_columns(
     protected_attribute: str | None = None,
 ) -> tuple[pd.DataFrame, dict[str, LabelEncoder]]:
     encoded = df.copy()
+    resolved_label_column = _resolve_column_name(encoded.columns, label_column, LABEL_COLUMN) or label_column
+    resolved_protected_attribute = _resolve_column_name(
+        encoded.columns,
+        protected_attribute,
+        _protected_attribute_name(),
+    )
     encoders: dict[str, LabelEncoder] = {}
     for column in encoded.columns:
-        if column == label_column:
+        if column == resolved_label_column:
             continue
         if encoded[column].dtype == object:
             encoder = LabelEncoder()
             encoded[column] = encoder.fit_transform(encoded[column].astype(str))
             encoders[column] = encoder
-    protected_attribute = _protected_attribute_name()
-    if protected_attribute in encoders:
-        encoded.attrs["protected_attribute"] = protected_attribute
-        encoded.attrs["protected_group_labels"] = {
-            int(index): str(label)
-            for index, label in enumerate(encoders[protected_attribute].classes_)
-        }
+    if resolved_protected_attribute in encoded.columns:
+        encoded.attrs["protected_attribute"] = resolved_protected_attribute
+        if resolved_protected_attribute in encoders:
+            encoded.attrs["protected_group_labels"] = {
+                int(index): str(label)
+                for index, label in enumerate(encoders[resolved_protected_attribute].classes_)
+            }
     return encoded, encoders
 
 
@@ -221,18 +305,23 @@ def build_binary_label_dataset(
     if not AIF360_AVAILABLE:
         return None
 
+    resolved_label_column = _resolve_column_name(encoded_df.columns, label_column, LABEL_COLUMN) or label_column
+    resolved_protected_attribute = _resolve_column_name(
+        encoded_df.columns,
+        protected_attribute,
+        _protected_attribute_name(),
+    ) or _protected_attribute_name()
+
     dataset_df = encoded_df.copy()
     if labels is not None:
-        dataset_df[label_column] = labels.astype(int)
-
-    protected_attr = protected_attribute or _protected_attribute_name()
+        dataset_df[resolved_label_column] = labels.astype(int)
 
     return BinaryLabelDataset(
         favorable_label=1,
         unfavorable_label=0,
         df=dataset_df,
-        label_names=[LABEL_COLUMN],
-        protected_attribute_names=[_protected_attribute_name()],
+        label_names=[resolved_label_column],
+        protected_attribute_names=[resolved_protected_attribute],
     )
 
 
@@ -251,11 +340,20 @@ def _metricframe_payload(
     encoded_features: pd.DataFrame,
     y_true: np.ndarray,
     y_pred: np.ndarray,
+    *,
+    protected_attribute: str | None = None,
 ) -> dict[str, Any]:
-    protected_attribute = str(
-        encoded_features.attrs.get("protected_attribute", _protected_attribute_name())
+    resolved_protected_attribute = (
+        _resolve_column_name(encoded_features.columns, protected_attribute)
+        or str(encoded_features.attrs.get("protected_attribute", ""))
+        or _protected_attribute_name()
     )
-    protected = encoded_features[protected_attribute]
+    if resolved_protected_attribute not in encoded_features.columns:
+        raise ValueError(
+            f"Protected attribute '{resolved_protected_attribute}' not found in encoded features."
+        )
+
+    protected = encoded_features[resolved_protected_attribute]
     frame = MetricFrame(
         metrics={
             "selection_rate": selection_rate,
@@ -320,16 +418,16 @@ def fallback_metrics(
     encoded_features: pd.DataFrame,
     y_true: np.ndarray,
     y_pred: np.ndarray,
+    *,
+    protected_attribute: str | None = None,
 ) -> dict[str, Any]:
-    return _metricframe_payload(encoded_features, y_true, y_pred)
+    return _metricframe_payload(
+        encoded_features,
+        y_true,
+        y_pred,
+        protected_attribute=protected_attribute,
+    )
 
-
-def compute_fairness_metrics(
-    encoded_features: pd.DataFrame,
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-) -> dict[str, Any]:
-    return _metricframe_payload(encoded_features, y_true, y_pred)
 
 def compute_fairness_metrics(
     encoded_features: pd.DataFrame,
@@ -345,36 +443,84 @@ def compute_fairness_metrics(
         protected_attribute=protected_attribute,
     )
 
-def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
-    normalized_df = normalize_dataframe(df)
-    if LABEL_COLUMN not in normalized_df.columns:
-        raise ValueError("Dataset must include a 'hired' column.")
-    protected_attribute = _protected_attribute_name()
-    if protected_attribute not in normalized_df.columns:
-        raise ValueError("Dataset must include a 'gender' column.")
 
-    encoded_df, encoders = encode_categorical_columns(normalized_df)
-    feature_columns = [
+def run_bias_detection(
+    df: pd.DataFrame,
+    *,
+    label_column: str = LABEL_COLUMN,
+    protected_attributes: list[str] | tuple[str, ...] | None = None,
+    outcome_positive_value: Any = 1,
+    feature_columns: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Any]:
+    normalized_df = normalize_dataframe(
+        df,
+        label_column=label_column,
+        protected_attribute=(protected_attributes or [None])[0],
+        outcome_positive_value=outcome_positive_value,
+    )
+    resolved_label_column = _resolve_column_name(
+        normalized_df.columns,
+        label_column,
+        LABEL_COLUMN,
+    )
+    if resolved_label_column is None:
+        raise ValueError(f"Dataset must include a '{label_column}' column.")
+
+    protected_candidates = _resolve_protected_attributes(
+        normalized_df.columns,
+        protected_attributes=protected_attributes,
+    )
+    if not protected_candidates:
+        requested = list(protected_attributes or PROTECTED_ATTRIBUTES)
+        raise ValueError(
+            "Dataset must include at least one protected attribute column. "
+            f"Expected one of: {requested}"
+        )
+    protected_attribute = protected_candidates[0]
+
+    encoded_df, encoders = encode_categorical_columns(
+        normalized_df,
+        label_column=resolved_label_column,
+        protected_attribute=protected_attribute,
+    )
+
+    available_feature_columns = [
         column
         for column in encoded_df.columns
-        if column not in {LABEL_COLUMN, *NON_FEATURE_COLUMNS}
+        if column not in {resolved_label_column, *NON_FEATURE_COLUMNS}
     ]
-    X = encoded_df[feature_columns]
-    X.attrs["protected_attribute"] = protected_attribute
+    resolved_feature_columns: list[str] = []
+    if feature_columns:
+        for column in feature_columns:
+            resolved = _resolve_column_name(available_feature_columns, str(column))
+            if resolved is not None and resolved not in resolved_feature_columns:
+                resolved_feature_columns.append(resolved)
+    if not resolved_feature_columns:
+        resolved_feature_columns = available_feature_columns
+
+    model_features = encoded_df[resolved_feature_columns].copy()
+    metric_features = model_features.copy()
+    if protected_attribute not in metric_features.columns:
+        metric_features = pd.concat(
+            [metric_features, encoded_df[[protected_attribute]].copy()],
+            axis=1,
+        )
+    metric_features.attrs["protected_attribute"] = protected_attribute
     if protected_attribute in encoders:
-        X.attrs["protected_group_labels"] = {
+        metric_features.attrs["protected_group_labels"] = {
             int(index): str(label)
             for index, label in enumerate(encoders[protected_attribute].classes_)
         }
-    y = encoded_df[LABEL_COLUMN].astype(int)
 
-    X_train = X
+    y = encoded_df[resolved_label_column].astype(int)
+
+    X_train = model_features
     y_train = y
     test_size = _select_test_size(y)
     if test_size is not None:
         try:
             X_train, _, y_train, _ = train_test_split(
-                X,
+                model_features,
                 y,
                 test_size=test_size,
                 random_state=42,
@@ -383,21 +529,21 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
         except ValueError:
             try:
                 X_train, _, y_train, _ = train_test_split(
-                    X,
+                    model_features,
                     y,
                     test_size=test_size,
                     random_state=42,
                     stratify=None,
                 )
             except ValueError:
-                X_train = X
+                X_train = model_features
                 y_train = y
 
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
-    predictions = model.predict(X)
-    proba = model.predict_proba(X)
+    predictions = model.predict(model_features)
+    proba = model.predict_proba(model_features)
     if proba.ndim == 2 and proba.shape[1] > 1:
         class_to_index = {int(label): index for index, label in enumerate(model.classes_)}
         positive_index = class_to_index.get(1)
@@ -411,7 +557,7 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
 
     observed_decisions = y.to_numpy()
     metrics = compute_fairness_metrics(
-        X,
+        metric_features,
         observed_decisions,
         observed_decisions,
         protected_attribute=protected_attribute,
@@ -421,19 +567,24 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
     for attribute in COUNTERFACTUAL_PROTECTED_ATTRIBUTES:
         if attribute in normalized_df.columns and not normalized_df[attribute].dropna().empty:
             majority_values[attribute] = normalized_df[attribute].mode().iloc[0]
+    for feature in resolved_feature_columns:
+        if feature in normalized_df.columns and feature not in majority_values:
+            non_null_values = normalized_df[feature].dropna()
+            if not non_null_values.empty:
+                majority_values[feature] = non_null_values.mode().iloc[0]
 
     return {
         **metrics,
         "bias_detected": not all(metrics["pass_flags"].values()),
         "model": model,
         "label_encoders": encoders,
-        "encoded_features": X.reset_index(drop=True),
+        "encoded_features": model_features.reset_index(drop=True),
         "normalized_dataframe": normalized_df.reset_index(drop=True),
         "predictions": predictions.astype(int),
         "probabilities": probabilities.astype(float),
-        "feature_names": X.columns.tolist(),
+        "feature_names": resolved_feature_columns,
         "majority_values": majority_values,
-        "label_column": label_column,
+        "label_column": resolved_label_column,
         "protected_attributes": protected_candidates,
         "protected_attribute": protected_attribute,
         "outcome_positive_value": outcome_positive_value,
