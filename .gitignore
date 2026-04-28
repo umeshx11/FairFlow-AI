@@ -7,6 +7,11 @@ backend/.mypy_cache/
 frontend/node_modules/
 frontend/build/
 frontend/.cache/
+.venv/
+.venv*/
+**/.venv/
+**/.venv*/
+unbiased-ai-decision/flutter-app/build/
 *.pyc
 *.pyo
 *.pyd

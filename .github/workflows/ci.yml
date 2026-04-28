@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-lint-test:
+    name: backend-lint-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt pytest ruff
+
+      - name: Lint backend
+        run: ruff check backend/
+
+      - name: Test backend
+        run: pytest backend/tests/ -v
+
+  unbiased-backend-test:
+    name: unbiased-backend-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install unbiased backend dependencies
+        run: pip install -r unbiased-ai-decision/backend/requirements.txt pytest
+
+      - name: Test unbiased backend
+        run: pytest unbiased-ai-decision/backend/ -v --ignore=unbiased-ai-decision/backend/models/user_test.py
+
+  flutter-test:
+    name: flutter-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.2"
+
+      - name: Install Flutter dependencies
+        working-directory: unbiased-ai-decision/flutter-app
+        run: flutter pub get
+
+      - name: Run Flutter widget tests
+        working-directory: unbiased-ai-decision/flutter-app
+        run: flutter test test/
+
+  docker-build:
+    name: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare compose environment
+        run: cp .env.example .env
+
+      - name: Build root Docker stack
+        run: docker compose build

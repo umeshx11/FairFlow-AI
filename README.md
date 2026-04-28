@@ -17,6 +17,21 @@ If you are looking for the Google-stack submission assets mentioned elsewhere in
 - Supports a browser-side WASM precheck before upload for zero-egress metric validation
 - Exposes governance and deep-inspection APIs for memory-aware recommendations and proxy analysis
 
+## Mitigation metric snapshot
+
+FairFlow compares mitigation stages side by side instead of assuming every fairness intervention improves the model. On the repository sample dataset (`sample_candidates.csv`, 200 rows), the current mitigation pipeline produces the following measured deltas.
+
+Thresholds used in the platform: Disparate Impact `> 0.80`; Statistical Parity Difference, Equal Opportunity Difference, and Average Odds Difference `|x| < 0.10`.
+
+| Stage | Disparate Impact | Stat. Parity Diff | Equal Opp. Diff | Avg. Odds Diff | Fairness Score |
+| --- | --- | --- | --- | --- | --- |
+| Original | `0.6585` | `-0.1556` | `0.0000` | `0.0000` | `50/100` |
+| After Reweighing | `0.6585` | `-0.1556` | `0.0000` | `0.0000` | `50/100` |
+| After Prejudice Remover | `0.6923` | `-0.1333` | `-0.1220` | `0.0744` | `25/100` |
+| After Equalized Odds | `0.0000` | `-0.4556` | `-1.0000` | `0.5678` | `0/100` |
+
+This is exactly why the product keeps all three stages visible: some mitigations improve one metric while hurting another, and some fail outright on a given dataset. The value is not just "apply mitigation" - it is being able to audit the mitigation itself before release.
+
 ## Stack
 
 - Backend: FastAPI, SQLAlchemy, PostgreSQL, scikit-learn, SHAP, Fairlearn, AIF360, DoWhy, LangGraph

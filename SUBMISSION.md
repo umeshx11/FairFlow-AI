@@ -78,3 +78,18 @@ Full comparison: `docs/competitive-analysis.md`
 FairFlow is not just a fairness library wrapped in a dashboard. It is a practical, end-to-end operating surface for AI accountability: mobile-first Flutter delivery, Gemini-generated explanations for non-technical teams, causal pathway visualization, browser-side WASM precheck, differential privacy PDF exports, and multi-jurisdiction legal risk framing across EU, US, and India contexts.
 
 That combination matters for real deployment. Teams do not only need a metric; they need a tool they can run, understand, share, and act on under time pressure. FairFlow was designed to meet that operational reality while staying rooted in the Google stack that makes Solution Challenge submissions scalable and credible.
+
+## 📉 Mitigation Snapshot
+
+FairFlow does not assume every mitigation automatically helps. It measures the before/after effect of each strategy so teams can compare tradeoffs before deployment instead of blindly shipping the first fairness intervention.
+
+Sample hiring audit on `sample_candidates.csv` (200 rows). Current thresholds: Disparate Impact `> 0.80`; other gaps `|x| < 0.10`.
+
+| Stage | Disparate Impact | Stat. Parity Diff | Equal Opp. Diff | Avg. Odds Diff | Fairness Score |
+| --- | --- | --- | --- | --- | --- |
+| Original | `0.6585` | `-0.1556` | `0.0000` | `0.0000` | `50/100` |
+| After Reweighing | `0.6585` | `-0.1556` | `0.0000` | `0.0000` | `50/100` |
+| After Prejudice Remover | `0.6923` | `-0.1333` | `-0.1220` | `0.0744` | `25/100` |
+| After Equalized Odds | `0.0000` | `-0.4556` | `-1.0000` | `0.5678` | `0/100` |
+
+That table is the product story in one glance: FairFlow is not just detecting bias, it is surfacing when a mitigation path fails, stalls, or introduces a new tradeoff. Judges can see that the platform supports evidence-based iteration rather than checkbox compliance.
