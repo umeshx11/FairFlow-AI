@@ -23,6 +23,6 @@ services:
         FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-unbiased-ai-demo.firebaseapp.com}
         FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-unbiased-ai-demo.appspot.com}
     ports:
-      - "3000:80"
+      - "${FLUTTER_WEB_PORT:-3000}:80"
     depends_on:
       - backend

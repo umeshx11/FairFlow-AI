@@ -7,7 +7,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-from firebase_config import firebase_admin_configured
+from firebase_config import firestore_available
 
 
 STORE_PATH = Path(tempfile.gettempdir()) / "unbiased-ai-decision" / "audits.json"
@@ -15,7 +15,7 @@ _STORE_LOCK = Lock()
 
 
 def local_store_enabled() -> bool:
-    return not firebase_admin_configured()
+    return not firestore_available()
 
 
 def resolve_audit_ids(audit_id: str) -> list[str]:
