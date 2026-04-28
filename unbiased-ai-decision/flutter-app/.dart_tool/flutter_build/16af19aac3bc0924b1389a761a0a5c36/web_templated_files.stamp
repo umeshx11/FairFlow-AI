@@ -1,0 +1,1 @@
+{"inputs":["/app/flutter-app/web/*/index.html","/app/flutter-app/web/flutter_bootstrap.js","/sdks/flutter/bin/internal/engine.version"],"outputs":["/app/flutter-app/build/web/*/index.html","/app/flutter-app/build/web/flutter_bootstrap.js"],"buildKey":"[{\"compileTarget\":\"dart2js\",\"renderer\":\"canvaskit\",\"mainJsPath\":\"main.dart.js\"}]"}

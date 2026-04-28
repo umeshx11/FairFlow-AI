@@ -47,9 +47,15 @@ def run_bias_analysis(
     domain: DomainName,
     audit_id: str,
     protected_attribute: str | None = None,
+    domain_config: dict[str, Any] | None = None,
     status_callback: Any | None = None,
 ) -> dict[str, Any]:
-    prepared = prepare_audit_dataset(dataset_path, domain, protected_attribute=protected_attribute)
+    prepared = prepare_audit_dataset(
+        dataset_path,
+        domain,
+        protected_attribute=protected_attribute,
+        domain_config=domain_config,
+    )
     bundle = train_register_and_deploy(prepared, audit_id)
     try:
         if status_callback is not None:
@@ -170,6 +176,10 @@ def store_audit_result(user_id: str, result_dict: dict[str, Any], audit_id: str 
         "jurisdiction_risks": result_dict.get("jurisdiction_risks", []),
         "candidate_flags": result_dict.get("candidate_flags", []),
         "counterfactuals": result_dict.get("counterfactuals", []),
+        "candidate_records": result_dict.get("candidate_records", []),
+        "domain_config": result_dict.get("domain_config", {}),
+        "mitigation_results": result_dict.get("mitigation_results", {}),
+        "governance_summary": result_dict.get("governance_summary", {}),
         "status": result_dict.get("status", "completed"),
         "stage": result_dict.get("stage", "complete"),
         "vertex_model_name": result_dict.get("vertex_model_name"),

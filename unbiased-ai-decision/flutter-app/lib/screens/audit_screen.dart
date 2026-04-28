@@ -247,7 +247,7 @@ class AuditPreviewSheet extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             Text(
-              'This preview is meant to help a non-technical reviewer decide whether to open the full report now. The full report includes the detailed fairness explanation, feature impact, and downloadable PDF.',
+              'This preview helps a reviewer decide whether to open the full audit workspace now. The workspace includes the overview, records, mitigation, governance, and shareable report view.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -276,7 +276,7 @@ class AuditPreviewSheet extends StatelessWidget {
                         ),
                       );
                     },
-                    child: const Text('Open Full Report'),
+                    child: const Text('Open Audit Workspace'),
                   ),
                 ),
               ],

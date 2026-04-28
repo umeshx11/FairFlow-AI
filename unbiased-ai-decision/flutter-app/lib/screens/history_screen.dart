@@ -59,7 +59,7 @@ class HistoryScreen extends StatelessWidget {
         : FirebaseService.instance.streamAuditHistory(session.uid);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Audit History')),
+      appBar: AppBar(title: const Text('Audit Workspaces')),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: stream,
         builder: (context, snapshot) {

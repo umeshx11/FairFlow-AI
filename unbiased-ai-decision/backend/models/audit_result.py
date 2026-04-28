@@ -34,6 +34,7 @@ class AuditResult(BaseModel):
     shap_values: list[dict[str, Any]] = Field(default_factory=list)
     shap_top3: list[str] = Field(default_factory=list)
     causal_graph_json: dict[str, Any] = Field(default_factory=dict)
+    domain_config: dict[str, Any] = Field(default_factory=dict)
     demographic_parity: float
     equalized_odds: float
     individual_fairness: float
@@ -44,7 +45,10 @@ class AuditResult(BaseModel):
     gemini_audit_qa: list[dict[str, str]] = Field(default_factory=list)
     jurisdiction_risks: list[dict[str, Any]] = Field(default_factory=list)
     candidate_flags: list[dict[str, Any]] = Field(default_factory=list)
+    candidate_records: list[dict[str, Any]] = Field(default_factory=list)
     counterfactuals: list[dict[str, Any]] = Field(default_factory=list)
+    mitigation_results: dict[str, Any] = Field(default_factory=dict)
+    governance_summary: dict[str, Any] = Field(default_factory=dict)
     sdg_tag: str = "SDG 10.3"
     sdg_mapping: dict[str, Any] = Field(default_factory=dict)
     status: str = "completed"

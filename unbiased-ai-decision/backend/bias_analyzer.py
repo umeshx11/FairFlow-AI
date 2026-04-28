@@ -10,6 +10,7 @@ from sklearn.metrics import brier_score_loss
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import LabelEncoder
 
+from domain_config import DomainConfig, PRESET_DOMAIN_TEMPLATES, normalize_column_name
 from schemas import DomainName, schema_for_domain
 from sdg_mapping import build_sdg_mapping
 
@@ -19,7 +20,15 @@ except Exception:
     shap = None
 
 
-NON_FEATURE_COLUMNS = {"id", "name", "full_name", "candidate_id", "organization_name"}
+NON_FEATURE_COLUMNS = {
+    "id",
+    "name",
+    "full_name",
+    "candidate_id",
+    "applicant_id",
+    "patient_id",
+    "organization_name",
+}
 PROTECTED_ATTRIBUTE_PRIORITY = [
     "gender",
     "ethnicity",
@@ -45,6 +54,11 @@ class PreparedDataset:
     protected_binary: np.ndarray
     protected_mapping: dict[int, str]
     organization_name: str
+    domain_config: dict[str, Any]
+    subject_label: str
+    outcome_label: str
+    record_id_column: str | None
+    protected_attributes: list[str]
 
 
 def _safe_float(value: Any) -> float:
@@ -70,6 +84,8 @@ def _coerce_binary_label(series: pd.Series) -> pd.Series:
             "hired": 1,
             "treated": 1,
             "untreated": 0,
+            "admitted": 1,
+            "denied": 0,
         }
     )
     numeric = pd.to_numeric(mapped, errors="coerce")
@@ -98,17 +114,28 @@ def _normalize_dataframe(dataframe: pd.DataFrame) -> pd.DataFrame:
     normalized = dataframe.copy()
     for column in normalized.columns:
         if normalized[column].dtype == object:
-            normalized[column] = normalized[column].fillna("Unknown").astype(str).str.strip()
+            normalized[column] = (
+                normalized[column].fillna("Unknown").astype(str).str.strip()
+            )
         else:
             normalized[column] = normalized[column].fillna(0)
     return normalized
 
 
+def _normalize_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
+    normalized = dataframe.copy()
+    normalized.columns = [normalize_column_name(column) for column in dataframe.columns]
+    return normalized
+
+
 def detect_available_protected_attributes(df: pd.DataFrame) -> list[str]:
-    normalized_columns = {str(column).strip().lower(): str(column).strip() for column in df.columns}
+    normalized_columns = {
+        normalize_column_name(column): normalize_column_name(column)
+        for column in df.columns
+    }
     detected: list[str] = []
     for candidate in PROTECTED_ATTRIBUTE_PRIORITY:
-        matched = normalized_columns.get(candidate.lower())
+        matched = normalized_columns.get(candidate)
         if matched:
             detected.append(matched)
     return detected
@@ -119,32 +146,114 @@ def _encode_features(df: pd.DataFrame, feature_columns: list[str]) -> pd.DataFra
     for column in feature_columns:
         if encoded[column].dtype == object:
             encoder = LabelEncoder()
-            encoded[column] = encoder.fit_transform(encoded[column].fillna("Unknown").astype(str))
+            encoded[column] = encoder.fit_transform(
+                encoded[column].fillna("Unknown").astype(str)
+            )
     return encoded
 
 
-def _row_label(row: pd.Series, row_index: int) -> str:
-    for key in ("candidate_id", "patient_id", "applicant_id", "id", "name", "full_name"):
+def _row_label(
+    row: pd.Series,
+    row_index: int,
+    record_id_column: str | None = None,
+) -> str:
+    candidate_keys = []
+    if record_id_column:
+        candidate_keys.append(record_id_column)
+    candidate_keys.extend(
+        ["candidate_id", "patient_id", "applicant_id", "id", "name", "full_name"]
+    )
+    for key in candidate_keys:
         if key in row and str(row[key]).strip():
             return str(row[key])
     return f"row-{row_index + 1}"
 
 
-def prepare_audit_dataset(
-    dataset_path: str,
+def _build_fallback_domain_config(domain: DomainName) -> DomainConfig:
+    if domain in PRESET_DOMAIN_TEMPLATES:
+        return PRESET_DOMAIN_TEMPLATES[domain].model_copy(deep=True)
+    if domain == "custom":
+        return DomainConfig(
+            domain="custom",
+            display_name="Custom",
+            outcome_column="outcome",
+            outcome_positive_value=1,
+            protected_attributes=["gender"],
+            feature_columns=[],
+            outcome_label="Outcome",
+            subject_label="Record",
+            required_columns=[],
+            column_map={},
+        )
+    schema = schema_for_domain(domain)
+    return DomainConfig(
+        domain=domain,
+        display_name=domain.title(),
+        outcome_column=str(schema["target"]),
+        outcome_positive_value=1,
+        protected_attributes=[str(item) for item in schema["protected_attributes"]],
+        feature_columns=[str(item) for item in schema["features"]],
+        outcome_label=str(schema["target"]).replace("_", " ").title(),
+        subject_label="Record",
+        required_columns=[
+            str(schema["target"]),
+            *[str(item) for item in schema["protected_attributes"]],
+            *[str(item) for item in schema["features"]],
+        ],
+        column_map={},
+    )
+
+
+def _resolve_domain_config(
+    domain: DomainName,
+    domain_config: dict[str, Any] | DomainConfig | None,
+) -> DomainConfig:
+    if isinstance(domain_config, DomainConfig):
+        return domain_config
+    if isinstance(domain_config, dict) and domain_config:
+        return DomainConfig(**domain_config)
+    return _build_fallback_domain_config(domain)
+
+
+def _resolve_record_id_column(config: DomainConfig, columns: list[str]) -> str | None:
+    preferred = config.column_map.get("record_id") or config.column_map.get("name")
+    if preferred and preferred in columns:
+        return preferred
+    for candidate in ("name", "candidate_id", "patient_id", "applicant_id", "id"):
+        if candidate in columns:
+            return candidate
+    return None
+
+
+def prepare_audit_dataframe(
+    dataframe: pd.DataFrame,
     domain: DomainName,
     protected_attribute: str | None = None,
+    domain_config: dict[str, Any] | DomainConfig | None = None,
 ) -> PreparedDataset:
-    dataframe = pd.read_csv(dataset_path)
-    dataframe.columns = [column.strip() for column in dataframe.columns]
-    schema = schema_for_domain(domain)
-    target_column = str(schema["target"])
-    available_protected_attributes = detect_available_protected_attributes(dataframe)
-    schema_protected_attributes = [str(column) for column in schema["protected_attributes"]]
+    config = _resolve_domain_config(domain, domain_config)
+    normalized_raw = _normalize_columns(dataframe)
+
+    target_column = config.outcome_column
+    if target_column not in normalized_raw.columns:
+        raise ValueError(
+            f"The uploaded CSV does not include the configured outcome column '{target_column}'."
+        )
+
+    available_protected_attributes = detect_available_protected_attributes(normalized_raw)
+    configured_protected_attributes = [
+        attribute
+        for attribute in config.protected_attributes
+        if attribute in normalized_raw.columns
+    ]
+    normalized_requested_attribute = (
+        normalize_column_name(protected_attribute) if protected_attribute else ""
+    )
     sensitive_column = (
-        protected_attribute
-        or next((column for column in available_protected_attributes if column in dataframe.columns), None)
-        or next((column for column in schema_protected_attributes if column in dataframe.columns), None)
+        normalized_requested_attribute
+        if normalized_requested_attribute and normalized_requested_attribute in normalized_raw.columns
+        else next(iter(configured_protected_attributes), None)
+        or next(iter(available_protected_attributes), None)
     )
     if sensitive_column is None:
         raise ValueError(
@@ -152,30 +261,52 @@ def prepare_audit_dataset(
             "Expected one of: gender, ethnicity, race, caste, religion, disability_status, region, age_group."
         )
 
-    non_protected_schema_features = [
-        str(column)
-        for column in schema["features"]
-        if str(column) not in schema_protected_attributes
-    ]
-    feature_candidates = list(
-        dict.fromkeys(
-            [
-                *non_protected_schema_features,
-                *[column for column in schema_protected_attributes if column in dataframe.columns],
-                sensitive_column,
-            ]
-        )
+    required_columns = (
+        list(config.required_columns)
+        if config.required_columns
+        else [
+            target_column,
+            *config.protected_attributes,
+            *config.feature_columns,
+        ]
     )
-    feature_columns = [column for column in feature_candidates if column in dataframe.columns]
-    required_columns = set(non_protected_schema_features) | {target_column, sensitive_column}
-    missing = sorted(required_columns.difference(dataframe.columns))
+    missing = sorted(
+        column for column in required_columns if column not in normalized_raw.columns
+    )
     if missing:
         raise ValueError(
-            f"The uploaded CSV does not match the {domain} schema. Missing columns: {', '.join(missing)}"
+            f"The uploaded CSV does not match the {config.display_name} schema. "
+            f"Missing columns: {', '.join(missing)}"
         )
 
-    normalized = _normalize_dataframe(dataframe)
+    feature_candidates = [
+        *config.feature_columns,
+        *configured_protected_attributes,
+        sensitive_column,
+    ]
+    feature_columns = [
+        column
+        for column in dict.fromkeys(feature_candidates)
+        if column in normalized_raw.columns
+        and column != target_column
+        and column != "organization_name"
+    ]
+    if not feature_columns:
+        feature_columns = [
+            column
+            for column in normalized_raw.columns
+            if column not in NON_FEATURE_COLUMNS
+            and column != target_column
+            and column != "organization_name"
+        ]
+
+    normalized = _normalize_dataframe(normalized_raw)
     normalized[target_column] = _coerce_binary_label(normalized[target_column])
+
+    record_id_column = _resolve_record_id_column(config, list(normalized.columns))
+    if record_id_column and "name" not in normalized.columns:
+        normalized["name"] = normalized[record_id_column].astype(str)
+
     protected_binary, protected_mapping = _binarize_sensitive(normalized[sensitive_column])
     encoded = _encode_features(normalized, feature_columns)
     feature_frame = encoded[feature_columns].copy()
@@ -187,8 +318,8 @@ def prepare_audit_dataset(
     )
 
     return PreparedDataset(
-        domain=domain,
-        raw=dataframe,
+        domain=config.domain,
+        raw=normalized_raw,
         normalized=normalized,
         feature_frame=feature_frame,
         labels=labels,
@@ -198,10 +329,35 @@ def prepare_audit_dataset(
         protected_binary=protected_binary,
         protected_mapping=protected_mapping,
         organization_name=organization_name,
+        domain_config=config.model_dump(mode="json"),
+        subject_label=config.subject_label,
+        outcome_label=config.outcome_label,
+        record_id_column=record_id_column,
+        protected_attributes=config.protected_attributes,
     )
 
 
-def _group_stats(y_true: np.ndarray, y_pred: np.ndarray, group: np.ndarray, target_group: int) -> dict[str, float]:
+def prepare_audit_dataset(
+    dataset_path: str,
+    domain: DomainName,
+    protected_attribute: str | None = None,
+    domain_config: dict[str, Any] | DomainConfig | None = None,
+) -> PreparedDataset:
+    dataframe = pd.read_csv(dataset_path)
+    return prepare_audit_dataframe(
+        dataframe,
+        domain=domain,
+        protected_attribute=protected_attribute,
+        domain_config=domain_config,
+    )
+
+
+def _group_stats(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    group: np.ndarray,
+    target_group: int,
+) -> dict[str, float]:
     mask = group == target_group
     if mask.sum() == 0:
         return {"selection_rate": 0.0, "tpr": 0.0, "fpr": 0.0}
@@ -216,7 +372,10 @@ def _group_stats(y_true: np.ndarray, y_pred: np.ndarray, group: np.ndarray, targ
     }
 
 
-def _compute_individual_fairness(feature_frame: pd.DataFrame, predictions: np.ndarray) -> float:
+def _compute_individual_fairness(
+    feature_frame: pd.DataFrame,
+    predictions: np.ndarray,
+) -> float:
     if len(feature_frame) < 2:
         return 1.0
     neighbors = min(6, len(feature_frame))
@@ -226,7 +385,9 @@ def _compute_individual_fairness(feature_frame: pd.DataFrame, predictions: np.nd
     mismatches: list[float] = []
     for row_index, row_neighbors in enumerate(indices):
         for neighbor_index in row_neighbors[1:]:
-            mismatches.append(abs(int(predictions[row_index]) - int(predictions[neighbor_index])))
+            mismatches.append(
+                abs(int(predictions[row_index]) - int(predictions[neighbor_index]))
+            )
     if not mismatches:
         return 1.0
     return round(1.0 - float(np.mean(mismatches)), 4)
@@ -242,9 +403,12 @@ def compute_fairness_metrics(
     privileged = _group_stats(labels, predictions, protected_binary, 1)
     unprivileged = _group_stats(labels, predictions, protected_binary, 0)
     privileged_selection = privileged["selection_rate"] or 1e-9
-    demographic_parity = unprivileged["selection_rate"] - privileged["selection_rate"]
+    demographic_parity = (
+        unprivileged["selection_rate"] - privileged["selection_rate"]
+    )
     equalized_odds = 0.5 * (
-        (unprivileged["tpr"] - privileged["tpr"]) + (unprivileged["fpr"] - privileged["fpr"])
+        (unprivileged["tpr"] - privileged["tpr"])
+        + (unprivileged["fpr"] - privileged["fpr"])
     )
     disparate_impact = unprivileged["selection_rate"] / privileged_selection
     calibration_error = float(brier_score_loss(labels, probabilities))
@@ -259,11 +423,17 @@ def compute_fairness_metrics(
 
 
 def calculate_bias_score(metrics: dict[str, Any]) -> float:
-    parity_penalty = min(1.0, abs(_safe_float(metrics.get("demographic_parity"))) / 0.5)
+    parity_penalty = min(
+        1.0, abs(_safe_float(metrics.get("demographic_parity"))) / 0.5
+    )
     odds_penalty = min(1.0, abs(_safe_float(metrics.get("equalized_odds"))) / 0.5)
-    impact_penalty = min(1.0, abs(1 - _safe_float(metrics.get("disparate_impact", 1.0))))
+    impact_penalty = min(
+        1.0, abs(1 - _safe_float(metrics.get("disparate_impact", 1.0)))
+    )
     calibration_penalty = min(1.0, _safe_float(metrics.get("calibration_error")))
-    individual_penalty = 1 - min(1.0, _safe_float(metrics.get("individual_fairness", 1.0)))
+    individual_penalty = 1 - min(
+        1.0, _safe_float(metrics.get("individual_fairness", 1.0))
+    )
     weighted = (
         0.30 * parity_penalty
         + 0.25 * odds_penalty
@@ -274,7 +444,10 @@ def calculate_bias_score(metrics: dict[str, Any]) -> float:
     return round(float(weighted * 100), 2)
 
 
-def compute_shap_summary(model: Any, feature_frame: pd.DataFrame) -> tuple[list[dict[str, float]], list[str]]:
+def compute_shap_summary(
+    model: Any,
+    feature_frame: pd.DataFrame,
+) -> tuple[list[dict[str, float]], list[str]]:
     try:
         if shap is None:
             raise RuntimeError("shap is not installed")
@@ -312,12 +485,26 @@ def build_causal_graph(
     for feature in shap_top3:
         if feature not in feature_frame.columns:
             continue
-        correlation = abs(np.corrcoef(feature_frame[feature].astype(float), protected_numeric)[0, 1])
+        correlation = abs(
+            np.corrcoef(feature_frame[feature].astype(float), protected_numeric)[0, 1]
+        )
         if np.isnan(correlation):
             correlation = 0.0
         nodes.append({"id": feature})
-        edges.append({"source": sensitive_column, "target": feature, "weight": round(float(correlation), 4)})
-        edges.append({"source": feature, "target": target_column, "weight": round(float(max(correlation, 0.1)), 4)})
+        edges.append(
+            {
+                "source": sensitive_column,
+                "target": feature,
+                "weight": round(float(correlation), 4),
+            }
+        )
+        edges.append(
+            {
+                "source": feature,
+                "target": target_column,
+                "weight": round(float(max(correlation, 0.1)), 4),
+            }
+        )
         if correlation >= 0.1 and pathway == "No strong causal proxy pathway detected.":
             pathway = f"{sensitive_column} -> {feature} -> {target_column}"
     deduped_nodes = list({node["id"]: node for node in nodes}.values())
@@ -331,8 +518,10 @@ def build_counterfactuals(
     shap_top3: list[str],
 ) -> list[dict[str, Any]]:
     counterfactuals: list[dict[str, Any]] = []
-    negative_indices = [index for index, prediction in enumerate(predictions) if int(prediction) == 0]
-    for row_index in negative_indices[:5]:
+    negative_indices = [
+        index for index, prediction in enumerate(predictions) if int(prediction) == 0
+    ]
+    for row_index in negative_indices[:8]:
         row = prepared.normalized.iloc[row_index]
         changes = []
         for feature in shap_top3:
@@ -348,7 +537,9 @@ def build_counterfactuals(
                     "feature": feature,
                     "current_value": round(current_value, 4),
                     "suggested_value": round(median_value, 4),
-                    "direction": "increase" if median_value > current_value else "decrease",
+                    "direction": "increase"
+                    if median_value > current_value
+                    else "decrease",
                 }
             )
             if len(changes) == 2:
@@ -357,12 +548,38 @@ def build_counterfactuals(
             continue
         counterfactuals.append(
             {
-                "row_id": _row_label(row, row_index),
+                "row_id": _row_label(row, row_index, prepared.record_id_column),
                 "current_probability": round(float(probabilities[row_index]), 4),
                 "suggested_changes": changes,
             }
         )
     return counterfactuals
+
+
+def _local_feature_impacts(
+    prepared: PreparedDataset,
+    row_index: int,
+    shap_values: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for item in shap_values[:5]:
+        feature = item.get("feature")
+        if not feature or feature not in prepared.feature_frame.columns:
+            continue
+        series = prepared.feature_frame[feature].astype(float)
+        current_value = float(prepared.feature_frame.iloc[row_index][feature])
+        median_value = float(series.median())
+        spread = max(float(series.std(ddof=0)) or 0.0, 1.0)
+        relative_pull = min(abs(current_value - median_value) / spread, 3.0)
+        local_weight = round(float(item.get("value", 0)) * (1.0 + 0.18 * relative_pull), 6)
+        rows.append(
+            {
+                "feature": feature,
+                "value": local_weight,
+                "current_value": round(current_value, 4),
+            }
+        )
+    return rows
 
 
 def build_candidate_flags(
@@ -376,29 +593,105 @@ def build_candidate_flags(
     ranked_indices = np.argsort(probabilities)
     flags: list[dict[str, Any]] = []
     for row_index in ranked_indices:
-        if len(flags) >= 5:
+        if len(flags) >= 6:
             break
         if int(predictions[row_index]) == 1 and probabilities[row_index] > 0.35:
             continue
         row = prepared.normalized.iloc[int(row_index)]
-        group_value = prepared.protected_mapping.get(int(prepared.protected_binary[row_index]), "Unknown")
-        row_id = _row_label(row, int(row_index))
+        group_value = prepared.protected_mapping.get(
+            int(prepared.protected_binary[row_index]),
+            "Unknown",
+        )
+        row_id = _row_label(row, int(row_index), prepared.record_id_column)
         flags.append(
             {
                 "row_id": row_id,
+                "display_name": str(row.get("name", row_id)),
                 "protected_group": group_value,
                 "sensitive_attribute": prepared.sensitive_column,
                 "predicted_decision": int(predictions[row_index]),
+                "actual_outcome": int(prepared.labels[row_index]),
                 "approval_probability": round(float(probabilities[row_index]), 4),
                 "primary_drivers": [item["feature"] for item in shap_values[:3]],
                 "recommendation_seed": (
                     "Review this decision with protected-attribute proxies masked before the final action."
                 ),
-                "shap_values": shap_values[:5],
+                "shap_values": _local_feature_impacts(prepared, int(row_index), shap_values),
                 "counterfactual": counterfactual_by_row.get(row_id, {}),
             }
         )
     return flags
+
+
+def build_candidate_records(
+    prepared: PreparedDataset,
+    predictions: np.ndarray,
+    probabilities: np.ndarray,
+    shap_values: list[dict[str, Any]],
+    candidate_flags: list[dict[str, Any]],
+    counterfactuals: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    flagged_ids = {item["row_id"] for item in candidate_flags}
+    counterfactual_by_row = {row["row_id"]: row for row in counterfactuals}
+    records: list[dict[str, Any]] = []
+
+    for row_index in range(len(prepared.normalized)):
+        row = prepared.normalized.iloc[row_index]
+        row_id = _row_label(row, row_index, prepared.record_id_column)
+        field_values = {
+            key: (value.item() if hasattr(value, "item") else value)
+            for key, value in row.to_dict().items()
+        }
+        impacts = _local_feature_impacts(prepared, row_index, shap_values)
+        display_name = str(
+            field_values.get("name")
+            or (
+                field_values.get(prepared.record_id_column)
+                if prepared.record_id_column
+                else row_id
+            )
+            or row_id
+        )
+        group_value = prepared.protected_mapping.get(
+            int(prepared.protected_binary[row_index]),
+            "Unknown",
+        )
+        record = {
+            "id": row_id,
+            "row_id": row_id,
+            "display_name": display_name,
+            "name": display_name,
+            "domain": prepared.domain,
+            "subject_label": prepared.subject_label,
+            "outcome_label": prepared.outcome_label,
+            "sensitive_attribute": prepared.sensitive_column,
+            "protected_group": group_value,
+            "predicted_decision": int(predictions[row_index]),
+            "original_decision": bool(int(predictions[row_index])),
+            "actual_outcome": int(prepared.labels[row_index]),
+            "approval_probability": round(float(probabilities[row_index]), 4),
+            "bias_flagged": row_id in flagged_ids,
+            "primary_drivers": [item["feature"] for item in impacts[:3]],
+            "feature_impacts": impacts,
+            "counterfactual_result": counterfactual_by_row.get(row_id, {}),
+            "feature_payload": field_values,
+            "fields": field_values,
+        }
+        for attribute in dict.fromkeys(
+            [*prepared.protected_attributes, prepared.sensitive_column, *field_values.keys()]
+        ):
+            if attribute in field_values:
+                record[attribute] = field_values[attribute]
+        records.append(record)
+
+    records.sort(
+        key=lambda item: (
+            0 if item["bias_flagged"] else 1,
+            item["approval_probability"],
+            item["display_name"],
+        )
+    )
+    return records
 
 
 def analyze_bias(
@@ -431,10 +724,25 @@ def analyze_bias(
     if stage_callback is not None:
         stage_callback("running_counterfactuals")
     counterfactuals = build_counterfactuals(prepared, predictions, probabilities, shap_top3)
-    candidate_flags = build_candidate_flags(prepared, predictions, probabilities, shap_values, counterfactuals)
+    candidate_flags = build_candidate_flags(
+        prepared,
+        predictions,
+        probabilities,
+        shap_values,
+        counterfactuals,
+    )
+    candidate_records = build_candidate_records(
+        prepared,
+        predictions,
+        probabilities,
+        shap_values,
+        candidate_flags,
+        counterfactuals,
+    )
     return {
         "organization_name": prepared.organization_name,
         "domain": prepared.domain,
+        "domain_config": prepared.domain_config,
         "model_family": model_family,
         "analysis_backend": analysis_backend,
         "bias_score": calculate_bias_score(fairness_metrics),
@@ -449,6 +757,7 @@ def analyze_bias(
         "calibration_error": fairness_metrics["calibration_error"],
         "disparate_impact": fairness_metrics["disparate_impact"],
         "candidate_flags": candidate_flags,
+        "candidate_records": candidate_records,
         "counterfactuals": counterfactuals,
         "sdg_mapping": build_sdg_mapping(fairness_metrics),
         "protected_attribute_used": prepared.sensitive_column,

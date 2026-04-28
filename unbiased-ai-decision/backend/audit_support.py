@@ -44,9 +44,17 @@ def attach_certificate_fields(payload: dict[str, Any]) -> dict[str, Any]:
 
 def build_deep_inspection(payload: dict[str, Any]) -> DeepInspectionResponse:
     domain = payload.get("domain", "hiring")
-    if domain not in ("hiring", "lending", "medical"):
+    if domain not in ("hiring", "lending", "medical", "custom"):
         domain = "hiring"
-    protected_attributes = {str(value) for value in schema_for_domain(domain)["protected_attributes"]}
+    protected_attributes = set()
+    if domain in ("hiring", "lending", "medical"):
+        protected_attributes = {
+            str(value) for value in schema_for_domain(domain)["protected_attributes"]
+        }
+    domain_config = payload.get("domain_config", {}) if isinstance(payload.get("domain_config"), dict) else {}
+    protected_attributes.update(
+        str(value) for value in domain_config.get("protected_attributes", []) if value
+    )
     payload_attribute = str(payload.get("protected_attribute_used", "")).strip()
     if payload_attribute:
         protected_attributes.add(payload_attribute)
@@ -87,10 +95,55 @@ def build_deep_inspection(payload: dict[str, Any]) -> DeepInspectionResponse:
         if edge.get("source") is not None and edge.get("target") is not None
     ]
 
+    proxy_findings: list[dict[str, Any]] = []
+    for node in nodes:
+        if node.id in protected_attributes:
+            continue
+        connected_weights = [
+            abs(edge.weight)
+            for edge in edges
+            if edge.source == node.id or edge.target == node.id
+        ]
+        proxy_strength = max(connected_weights) if connected_weights else 0.0
+        treatment_effect = round(node.shap_importance * 1.8, 6)
+        risk_score = round((node.shap_importance * 1.4) + (proxy_strength * 0.8), 6)
+        proxy_findings.append(
+            {
+                "feature": node.id,
+                "proxy_strength": round(proxy_strength, 6),
+                "treatment_effect": treatment_effect,
+                "risk_score": risk_score,
+                "is_proxy": risk_score >= 0.08,
+                "explanation": node.proxy_explanation,
+            }
+        )
+    proxy_findings.sort(key=lambda item: item["risk_score"], reverse=True)
+
+    tcav_concepts = [
+        {
+            "concept": item["feature"],
+            "tcav_score": round(min(1.0, item["proxy_strength"] * 2.2), 4),
+            "sensitivity": round(item["risk_score"], 4),
+            "summary": item["explanation"],
+        }
+        for item in proxy_findings[:6]
+    ]
+
     return DeepInspectionResponse(
         audit_id=str(payload.get("audit_id")),
         domain=domain,
         nodes=nodes,
         edges=edges,
         pathway_summary=payload.get("causal_pathway", "No strong causal pathway detected."),
+        proxy_findings=proxy_findings,
+        dag_edges=[
+            {
+                "source": edge.source,
+                "target": edge.target,
+                "weight": edge.weight,
+                "is_proxy_edge": edge.is_proxy_edge,
+            }
+            for edge in edges
+        ],
+        tcav_concepts=tcav_concepts,
     )

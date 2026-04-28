@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from audit_repository import fetch_audit_payload, fetch_user_history
 from bias_analyzer import detect_available_protected_attributes
+from domain_config import parse_domain_config_payload, validate_required_columns
 from gemini_explainer import generate_gemini_insights
 from models.audit_result import AuditResult, FairnessMetrics
 from schemas import DomainName
@@ -41,6 +42,7 @@ def _audit_response(payload: dict) -> AuditResult:
         shap_values=payload.get("shap_values", []),
         shap_top3=payload.get("shap_top3", []),
         causal_graph_json=payload.get("causal_graph_json", {}),
+        domain_config=payload.get("domain_config", {}),
         demographic_parity=payload.get("demographic_parity", 0),
         equalized_odds=payload.get("equalized_odds", 0),
         individual_fairness=payload.get("individual_fairness", 0),
@@ -51,7 +53,10 @@ def _audit_response(payload: dict) -> AuditResult:
         gemini_audit_qa=payload.get("gemini_audit_qa", []),
         jurisdiction_risks=payload.get("jurisdiction_risks", []),
         candidate_flags=payload.get("candidate_flags", []),
+        candidate_records=payload.get("candidate_records", []),
         counterfactuals=payload.get("counterfactuals", []),
+        mitigation_results=payload.get("mitigation_results", {}),
+        governance_summary=payload.get("governance_summary", {}),
         sdg_tag=payload.get("sdg_tag", "SDG 10.3"),
         sdg_mapping=payload.get("sdg_mapping", {}),
         status=payload.get("status", "completed"),
@@ -75,7 +80,8 @@ async def create_audit(
     model_file: UploadFile | None = File(None),
     model_name: str = Form(...),
     user_id: str = Form(...),
-    domain: DomainName = Form(...),
+    domain: DomainName = Form("hiring"),
+    domain_config: str = Form(""),
     organization_name: str = Form("FairFlow Demo Organization"),
     audit_id: str | None = Form(None),
 ):
@@ -95,6 +101,25 @@ async def create_audit(
             detail=f"Could not parse uploaded dataset: {exc}",
         ) from exc
 
+    parsed_domain_config = parse_domain_config_payload(
+        domain_config_payload=domain_config.strip() or None,
+        fallback_domain=domain,
+        csv_columns=list(uploaded_df.columns),
+    )
+    missing_columns, _ = validate_required_columns(parsed_domain_config, list(uploaded_df.columns))
+    if missing_columns:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": (
+                    f"Your CSV is missing {len(missing_columns)} required columns for the "
+                    f"{parsed_domain_config.display_name} domain."
+                ),
+                "missing_columns": missing_columns,
+                "domain": parsed_domain_config.domain,
+            },
+        )
+
     available_protected_attributes = detect_available_protected_attributes(uploaded_df)
     if not available_protected_attributes:
         raise HTTPException(
@@ -104,7 +129,16 @@ async def create_audit(
                 "Expected one of: gender, ethnicity, race, caste, religion, disability_status, region, age_group."
             ),
         )
-    primary_protected_attribute = available_protected_attributes[0]
+    configured_protected = [
+        attribute
+        for attribute in parsed_domain_config.protected_attributes
+        if attribute in [column.strip().lower().replace("-", "_").replace(" ", "_") for column in uploaded_df.columns]
+    ]
+    primary_protected_attribute = (
+        configured_protected[0]
+        if configured_protected
+        else available_protected_attributes[0]
+    )
 
     document_id = create_audit_record(
         user_id,
@@ -113,7 +147,8 @@ async def create_audit(
             "organization_name": organization_name,
             "model_name": model_name,
             "dataset_name": dataset_file.filename,
-            "domain": domain,
+            "domain": parsed_domain_config.domain,
+            "domain_config": parsed_domain_config.model_dump(mode="json"),
             "protected_attribute_used": primary_protected_attribute,
         },
     )
@@ -126,9 +161,10 @@ async def create_audit(
         audit_result = await run_in_threadpool(
             run_bias_analysis,
             dataset_path=str(dataset_path),
-            domain=domain,
+            domain=parsed_domain_config.domain,
             audit_id=document_id,
             protected_attribute=primary_protected_attribute,
+            domain_config=parsed_domain_config.model_dump(mode="json"),
             status_callback=publish,
         )
     except Exception as exc:
@@ -142,7 +178,8 @@ async def create_audit(
     audit_result["model_name"] = model_name
     audit_result["dataset_name"] = dataset_file.filename
     audit_result["user_id"] = user_id
-    audit_result["domain"] = domain
+    audit_result["domain"] = parsed_domain_config.domain
+    audit_result["domain_config"] = parsed_domain_config.model_dump(mode="json")
     audit_result["protected_attribute_used"] = primary_protected_attribute
     audit_result["status"] = "completed"
     audit_result["stage"] = "applying_mitigation"
