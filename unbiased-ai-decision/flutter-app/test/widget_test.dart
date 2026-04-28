@@ -61,9 +61,9 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('SDG 10.3'), findsOneWidget);
-    expect(find.textContaining('SDG 8.5'), findsOneWidget);
-    expect(find.textContaining('SDG 16.b'), findsOneWidget);
+    expect(find.textContaining('SDG 10.3', findRichText: true), findsOneWidget);
+    expect(find.textContaining('SDG 8.5', findRichText: true), findsOneWidget);
+    expect(find.textContaining('SDG 16.b', findRichText: true), findsOneWidget);
   });
 
   testWidgets('BiasGauge renders with a score value and risk label', (tester) async {
