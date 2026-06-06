@@ -152,7 +152,7 @@ def run_auditor_agent(
 
     def report_node(state: AuditorState) -> AuditorState:
         rationale = state.get("rationale", "")
-        report_rationale = f"{REPORT_PROMPT.strip()} {rationale}"
+        report_rationale = rationale
         return {
             **state,
             "rationale": report_rationale,

@@ -218,6 +218,12 @@ function Mitigate() {
     }
   };
 
+  useEffect(() => {
+    if (audit && !result && !running) {
+      handleRunMitigation();
+    }
+  }, [audit, result, running]);
+
   const handleDownloadReport = async () => {
     try {
       const blob = await downloadReport(auditId);
@@ -317,6 +323,9 @@ function Mitigate() {
     if (!result) {
       return null;
     }
+    if (result.recommendation) {
+      return result.recommendation;
+    }
     const recommendationText = (agentDecision?.recommendation || "").toLowerCase();
     if (recommendationText.includes("equalized odds")) {
       return "Equalized Odds";
@@ -385,11 +394,11 @@ function Mitigate() {
       </div>
 
       {!result && (
-        <div className="section-card text-center">
-          <h2 className="text-2xl font-bold text-slate-900">Mitigation analysis has not been run yet</h2>
+        <div className="section-card flex min-h-[300px] flex-col items-center justify-center text-center">
+          <Spinner className="h-8 w-8 text-navy" />
+          <h2 className="mt-5 text-2xl font-bold text-slate-900">Computing 3 strategies...</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-            Start the mitigation workflow to compute before-and-after fairness metrics, update
-            {subjectLabel.toLowerCase()} ranking decisions, and enable PDF report export.
+            Applying Reweighing, Prejudice Remover, and Equalized Odds to calculate optimal fairness lift...
           </p>
         </div>
       )}

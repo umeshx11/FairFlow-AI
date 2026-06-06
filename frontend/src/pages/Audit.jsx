@@ -7,6 +7,7 @@ import { LAST_AUDIT_STORAGE_KEY, getAuditTemplates, uploadAudit } from "../api/f
 import CSVUploader from "../components/CSVUploader";
 import DomainSelector from "../components/DomainSelector";
 import FairnessReportCard from "../components/FairnessReportCard";
+import GeminiSummaryCard from "../components/GeminiSummaryCard";
 import LocalWasmPrecheckCard from "../components/LocalWasmPrecheckCard";
 import { buildEthosInputFromCsvText } from "../wasm/csvAuditInput";
 import { runEthosPipeline } from "../wasm/ethosEngine";
@@ -49,6 +50,38 @@ function Audit() {
   const [outcomeLabel, setOutcomeLabel] = useState("Hired");
   const [outcomePositiveValue, setOutcomePositiveValue] = useState("1");
   const [showAdvancedSchema, setShowAdvancedSchema] = useState(false);
+  const [geminiData, setGeminiData] = useState(null);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+
+  useEffect(() => {
+    const auditId = report?.audit?.id;
+    if (!auditId) return;
+    
+    setGeminiLoading(true);
+    
+    const token = localStorage.getItem("token") || 
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("fairlens_token");
+    
+    fetch(
+      `http://localhost:8000/audit/${auditId}/gemini-summary`,
+      {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    )
+    .then(r => r.json())
+    .then(d => {
+      setGeminiData(d);
+      setGeminiLoading(false);
+    })
+    .catch(err => {
+      console.error("Gemini fetch error:", err);
+      setGeminiLoading(false);
+    });
+  }, [report?.audit?.id]);
 
   useEffect(() => {
     const loadTemplates = async () => {
@@ -473,6 +506,82 @@ function Audit() {
             </section>
           )}
           <FairnessReportCard metrics={report.metrics} />
+          <div className="rounded-xl border border-slate-200 bg-white p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">✨</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                  AI Fairness Verdict
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Gemini Analysis
+                  {geminiData?.source === "gemini-1.5-flash" && (
+                    <span className="ml-2 text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                      Powered by Gemini
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full border ${
+                  geminiData?.risk_level === "high"
+                    ? "bg-red-100 text-red-700 border-red-200"
+                    : geminiData?.risk_level === "low"
+                    ? "bg-green-100 text-green-700 border-green-200"
+                    : "bg-amber-100 text-amber-700 border-amber-200"
+                }`}>
+                {geminiData?.risk_level === "high" 
+                  ? "High Risk" 
+                  : geminiData?.risk_level === "low"
+                  ? "Low Risk"
+                  : "Medium Risk"}
+              </span>
+            </div>
+
+            {geminiLoading ? (
+              <div className="space-y-2">
+                <div className="h-3 bg-slate-100 rounded animate-pulse w-full"/>
+                <div className="h-3 bg-slate-100 rounded animate-pulse w-4/5"/>
+                <div className="h-3 bg-slate-100 rounded animate-pulse w-full"/>
+                <p className="text-slate-400 text-xs mt-2">
+                  Generating Gemini analysis...
+                </p>
+              </div>
+            ) : geminiData ? (
+              <>
+                <div className="text-slate-700 text-sm leading-relaxed mb-4 space-y-3">
+                  {geminiData.summary
+                    .split('\n\n')
+                    .filter(p => p.trim())
+                    .map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))
+                  }
+                </div>
+                {geminiData.bottom_line && (
+                  <div className="bg-slate-900 rounded-lg p-4 mb-4">
+                    <p className="text-white font-semibold text-sm">
+                      {geminiData.bottom_line}
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    const text = 
+                      `${geminiData.summary}\n\n` +
+                      `${geminiData.bottom_line}`;
+                    navigator.clipboard.writeText(text);
+                  }}
+                  className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 transition-colors"
+                >
+                  Copy for stakeholders
+                </button>
+              </>
+            ) : (
+              <p className="text-slate-500 text-sm">
+                Analysis unavailable. Check backend connection.
+              </p>
+            )}
+          </div>
 
           <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
             <div className="section-card">

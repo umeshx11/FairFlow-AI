@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getAudit, listAudits, runDeepInspection, runGovernanceAuditor } from "../api/fairlensApi";
+import GeminiSummaryCard from "../components/GeminiSummaryCard";
 import Spinner from "../components/Spinner";
 
 const fairnessDefinitions = [
@@ -32,7 +33,7 @@ function verdictFromSignals(agentDecision, deepInspection) {
       label: "FAIL",
       icon: ShieldAlert,
       tone: "border-rose-300 bg-rose-50 text-rose-800",
-      summary: "High bias risk remains. Hold rollout and apply stronger mitigation before deployment."
+      summary: "Critical bias detected. Do not deploy until mitigated."
     };
   }
   if (
@@ -45,14 +46,14 @@ function verdictFromSignals(agentDecision, deepInspection) {
       label: "FLAG",
       icon: TriangleAlert,
       tone: "border-amber-300 bg-amber-50 text-amber-800",
-      summary: "Fairness is improving but still needs governance review and tracked follow-up actions."
+      summary: "Bias patterns detected. Human review required before production use."
     };
   }
   return {
     label: "PASS",
     icon: ShieldCheck,
     tone: "border-emerald-300 bg-emerald-50 text-emerald-800",
-    summary: "No major fairness alarms are active in this run. Proceed with monitored rollout."
+    summary: "No critical bias detected. Safe for monitored rollout."
   };
 }
 
@@ -136,6 +137,12 @@ function Governance() {
     }
   };
 
+  useEffect(() => {
+    if (audit && !agentDecision && !running) {
+      runGovernance();
+    }
+  }, [audit, agentDecision, running]);
+
   const verdict = useMemo(
     () => verdictFromSignals(agentDecision, deepInspection),
     [agentDecision, deepInspection]
@@ -212,6 +219,8 @@ function Governance() {
               onChange={(event) => {
                 const nextId = event.target.value;
                 setSelectedAuditId(nextId);
+                setAgentDecision(null);
+                setDeepInspection(null);
                 navigate(`/governance/${nextId}`);
               }}
               className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
@@ -239,8 +248,20 @@ function Governance() {
         <div className="section-card flex min-h-[220px] items-center justify-center">
           <Spinner className="h-7 w-7 text-navy" />
         </div>
+      ) : running || !agentDecision ? (
+        <div className="section-card flex min-h-[300px] flex-col items-center justify-center text-center">
+          <Spinner className="h-8 w-8 text-navy" />
+          <h2 className="mt-5 text-2xl font-bold text-slate-900">Governance Analysis Running...</h2>
+          <div className="mt-4 space-y-2 text-sm text-slate-600 text-left">
+            <p className="animate-pulse">1. Analyzing historical audits...</p>
+            <p className="animate-pulse" style={{ animationDelay: "1s" }}>2. Evaluating policy compliance...</p>
+            <p className="animate-pulse" style={{ animationDelay: "2s" }}>3. Generating compliance matrix...</p>
+          </div>
+        </div>
       ) : (
-        <section className={`section-card border ${verdict.tone}`}>
+        <>
+          <GeminiSummaryCard auditId={selectedAuditId} />
+          <section className={`section-card border ${verdict.tone}`}>
           <div className="flex items-start gap-4">
             <div className="rounded-2xl bg-white/80 p-3">
               <VerdictIcon className="h-5 w-5" />
@@ -250,11 +271,8 @@ function Governance() {
               <h3 className="mt-2 text-2xl font-bold text-slate-900">{verdict.summary}</h3>
               <p className="mt-3 text-sm leading-7 text-slate-700">
                 {agentDecision?.recommendation ||
-                  "Run analysis to generate a policy-aware recommendation and memory-backed rationale."}
+                  "Run analysis to generate a policy-aware recommendation."}
               </p>
-              {agentDecision?.rationale && (
-                <p className="mt-2 text-sm leading-7 text-slate-700">{agentDecision.rationale}</p>
-              )}
               {audit && (
                 <p className="mt-3 text-xs uppercase tracking-[0.14em] text-slate-600">
                   Fairness score: {Math.round(audit.fairness_score)} / 100
@@ -263,6 +281,7 @@ function Governance() {
             </div>
           </div>
         </section>
+        </>
       )}
 
       <section className="section-card border border-slate-200 bg-white">
@@ -313,14 +332,42 @@ function Governance() {
           <p className="mt-4 text-sm text-slate-600">No memory snapshots yet. Run the governance agent first.</p>
         ) : (
           <div className="mt-5 space-y-3">
-            {agentDecision.recalled_memories.map((memory, index) => (
-              <div key={`${memory.stage}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {memory.stage} • similarity {Number(memory.score).toFixed(2)}
-                </p>
-                <p className="mt-2 text-sm leading-7 text-slate-700">{memory.memory_text}</p>
-              </div>
-            ))}
+            {agentDecision.recalled_memories.map((memory, index) => {
+              const text = memory.memory_text || "";
+              const parts = text.split('|').map(s => s.trim());
+              let stage = memory.stage?.toUpperCase() || 'UNKNOWN';
+              let dataset = 'unknown_dataset';
+              let fairness = '--';
+              let di = '--';
+              let recommendation = 'Audit recorded for governance tracking.';
+
+              parts.forEach(part => {
+                if (part.startsWith('stage=')) stage = part.substring(6).toUpperCase();
+                if (part.startsWith('dataset=')) dataset = part.substring(8);
+                if (part.startsWith('recommendation=')) recommendation = part.substring(15);
+              });
+
+              const fairnessMatch = text.match(/fairness=([\d.]+)/i);
+              if (fairnessMatch) fairness = fairnessMatch[1];
+
+              const diMatch = text.match(/DI=([\d.-]+)/i);
+              if (diMatch) di = diMatch[1];
+
+              return (
+                <div key={`${memory.stage}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex rounded-full bg-navy px-2 py-1 text-xs font-semibold text-white">
+                      {stage}
+                    </span>
+                    <span className="text-sm font-semibold text-slate-900">{dataset}</span>
+                  </div>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Fairness: {fairness}/100 • DI: {di}
+                  </p>
+                  <p className="mt-3 text-sm leading-7 text-slate-700">{recommendation}</p>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
