@@ -99,7 +99,7 @@ def _normalize_label_token(value: Any) -> str:
     return str(value).strip().lower().replace("-", "_").replace(" ", "_")
 
 
-def normalize_hired_column(series: pd.Series) -> pd.Series:
+def normalize_hired_column(series: pd.Series, positive_value: Any = 1) -> pd.Series:
     numeric_series = pd.to_numeric(series, errors="coerce")
     if numeric_series.notna().all():
         positive_numeric = pd.to_numeric(pd.Series([positive_value]), errors="coerce").iloc[0]
@@ -165,7 +165,7 @@ def _normalize_gender_value(value: Any) -> str:
     return "Non-binary"
 
 
-def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def normalize_dataframe(df: pd.DataFrame, label_column: str = LABEL_COLUMN, positive_value: Any = 1, protected_attribute: str | None = None) -> pd.DataFrame:
     normalized = df.copy()
     normalized.columns = [column.strip() for column in normalized.columns]
     for column in normalized.columns:
@@ -174,14 +174,14 @@ def normalize_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         else:
             normalized[column] = normalized[column].fillna(0)
 
-    protected_attribute = _protected_attribute_name()
-    if protected_attribute in normalized.columns:
-        normalized[protected_attribute] = normalized[protected_attribute].apply(
+    protected_attr = protected_attribute or _protected_attribute_name()
+    if protected_attr in normalized.columns:
+        normalized[protected_attr] = normalized[protected_attr].apply(
             _normalize_gender_value
         )
 
-    if LABEL_COLUMN in normalized.columns:
-        normalized[LABEL_COLUMN] = normalize_hired_column(normalized[LABEL_COLUMN])
+    if label_column in normalized.columns:
+        normalized[label_column] = normalize_hired_column(normalized[label_column], positive_value)
 
     return normalized
 
@@ -345,28 +345,40 @@ def compute_fairness_metrics(
         protected_attribute=protected_attribute,
     )
 
-def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
-    normalized_df = normalize_dataframe(df)
-    if LABEL_COLUMN not in normalized_df.columns:
-        raise ValueError("Dataset must include a 'hired' column.")
-    protected_attribute = _protected_attribute_name()
-    if protected_attribute not in normalized_df.columns:
-        raise ValueError("Dataset must include a 'gender' column.")
+def run_bias_detection(
+    df: pd.DataFrame,
+    label_column: str = LABEL_COLUMN,
+    protected_attributes: list[str] | None = None,
+    outcome_positive_value: Any = 1,
+    feature_columns: list[str] | None = None,
+) -> dict[str, Any]:
+    protected_attr = protected_attributes[0] if protected_attributes else _protected_attribute_name()
+    normalized_df = normalize_dataframe(df, label_column=label_column, positive_value=outcome_positive_value, protected_attribute=protected_attr)
+    
+    if label_column not in normalized_df.columns:
+        raise ValueError(f"Dataset must include a '{label_column}' column.")
+    if protected_attr not in normalized_df.columns:
+        raise ValueError(f"Dataset must include a '{protected_attr}' column.")
 
-    encoded_df, encoders = encode_categorical_columns(normalized_df)
-    feature_columns = [
-        column
-        for column in encoded_df.columns
-        if column not in {LABEL_COLUMN, *NON_FEATURE_COLUMNS}
-    ]
+    encoded_df, encoders = encode_categorical_columns(normalized_df, label_column=label_column, protected_attribute=protected_attr)
+    
+    if feature_columns is None:
+        feature_columns = [
+            column
+            for column in encoded_df.columns
+            if column not in {label_column, *NON_FEATURE_COLUMNS}
+        ]
+    else:
+        feature_columns = [c for c in feature_columns if c in encoded_df.columns]
+        
     X = encoded_df[feature_columns]
-    X.attrs["protected_attribute"] = protected_attribute
-    if protected_attribute in encoders:
+    X.attrs["protected_attribute"] = protected_attr
+    if protected_attr in encoders:
         X.attrs["protected_group_labels"] = {
             int(index): str(label)
-            for index, label in enumerate(encoders[protected_attribute].classes_)
+            for index, label in enumerate(encoders[protected_attr].classes_)
         }
-    y = encoded_df[LABEL_COLUMN].astype(int)
+    y = encoded_df[label_column].astype(int)
 
     X_train = X
     y_train = y
@@ -414,7 +426,7 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
         X,
         observed_decisions,
         observed_decisions,
-        protected_attribute=protected_attribute,
+        protected_attribute=protected_attr,
     )
 
     majority_values: dict[str, Any] = {}
@@ -434,7 +446,7 @@ def run_bias_detection(df: pd.DataFrame) -> dict[str, Any]:
         "feature_names": X.columns.tolist(),
         "majority_values": majority_values,
         "label_column": label_column,
-        "protected_attributes": protected_candidates,
-        "protected_attribute": protected_attribute,
+        "protected_attributes": protected_attributes or [protected_attr],
+        "protected_attribute": protected_attr,
         "outcome_positive_value": outcome_positive_value,
     }
