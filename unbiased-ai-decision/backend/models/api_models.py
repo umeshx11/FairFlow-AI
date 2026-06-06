@@ -112,6 +112,24 @@ class DeepInspectionResponse(BaseModel):
     nodes: list[DeepInspectionNode] = Field(default_factory=list)
     edges: list[DeepInspectionEdge] = Field(default_factory=list)
     pathway_summary: str
+    proxy_findings: list[dict[str, Any]] = Field(default_factory=list)
+    dag_edges: list[dict[str, Any]] = Field(default_factory=list)
+    tcav_concepts: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class GovernanceMemory(BaseModel):
+    stage: str
+    score: float
+    memory_text: str
+
+
+class GovernanceDecisionResponse(BaseModel):
+    audit_id: str
+    recommendation: str
+    rationale: str
+    actions: list[str] = Field(default_factory=list)
+    status: Literal["pass", "flag", "fail"]
+    recalled_memories: list[GovernanceMemory] = Field(default_factory=list)
 
 
 class FairnessCertificate(BaseModel):

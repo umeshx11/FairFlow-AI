@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 
-DomainName = Literal["hiring", "lending", "medical"]
+DomainName = Literal["hiring", "lending", "medical", "custom"]
 
 
 DOMAIN_SCHEMAS: dict[DomainName, dict[str, object]] = {
@@ -26,4 +26,6 @@ DOMAIN_SCHEMAS: dict[DomainName, dict[str, object]] = {
 
 
 def schema_for_domain(domain: DomainName) -> dict[str, object]:
+    if domain == "custom":
+        raise KeyError("Custom domains are described by runtime domain_config payloads.")
     return DOMAIN_SCHEMAS[domain]

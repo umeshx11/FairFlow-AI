@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   backend:
     build:
@@ -17,8 +15,14 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.flutter
       args:
-        FLUTTER_API_BASE_URL: ${FLUTTER_API_BASE_URL:-http://localhost:8080}
+        FLUTTER_API_BASE_URL: ${FLUTTER_API_BASE_URL:-https://fairflow-ai-1056539416381.asia-south1.run.app}
+        FIREBASE_API_KEY: ${FIREBASE_API_KEY:-demo-api-key}
+        FIREBASE_APP_ID: ${FIREBASE_APP_ID:-1:1234567890:web:demo}
+        FIREBASE_MESSAGING_SENDER_ID: ${FIREBASE_MESSAGING_SENDER_ID:-1234567890}
+        FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-unbiased-ai-demo}
+        FIREBASE_AUTH_DOMAIN: ${FIREBASE_AUTH_DOMAIN:-unbiased-ai-demo.firebaseapp.com}
+        FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET:-unbiased-ai-demo.appspot.com}
     ports:
-      - "3000:80"
+      - "${FLUTTER_WEB_PORT:-3000}:80"
     depends_on:
       - backend

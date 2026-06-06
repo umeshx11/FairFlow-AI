@@ -1,14 +1,28 @@
 FROM ghcr.io/cirruslabs/flutter:3.24.2 AS build
 
-ARG FLUTTER_API_BASE_URL=http://localhost:8080
+ARG FLUTTER_API_BASE_URL=https://fairflow-ai-1056539416381.asia-south1.run.app
+ARG FIREBASE_API_KEY=demo-api-key
+ARG FIREBASE_APP_ID=1:1234567890:web:demo
+ARG FIREBASE_MESSAGING_SENDER_ID=1234567890
+ARG FIREBASE_PROJECT_ID=unbiased-ai-demo
+ARG FIREBASE_AUTH_DOMAIN=unbiased-ai-demo.firebaseapp.com
+ARG FIREBASE_STORAGE_BUCKET=unbiased-ai-demo.appspot.com
 
+ENV CI=true
 WORKDIR /app/flutter-app
 
-COPY flutter-app/pubspec.yaml ./
+COPY flutter-app/pubspec.yaml flutter-app/pubspec.lock ./
 RUN flutter config --enable-web && flutter pub get
 
 COPY flutter-app/ ./
-RUN flutter build web --release --dart-define=FLUTTER_API_BASE_URL=${FLUTTER_API_BASE_URL}
+RUN flutter build web --release --pwa-strategy=none \
+    --dart-define=FLUTTER_API_BASE_URL=${FLUTTER_API_BASE_URL} \
+    --dart-define=FIREBASE_API_KEY=${FIREBASE_API_KEY} \
+    --dart-define=FIREBASE_APP_ID=${FIREBASE_APP_ID} \
+    --dart-define=FIREBASE_MESSAGING_SENDER_ID=${FIREBASE_MESSAGING_SENDER_ID} \
+    --dart-define=FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID} \
+    --dart-define=FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN} \
+    --dart-define=FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
 
 FROM nginx:1.27-alpine
 

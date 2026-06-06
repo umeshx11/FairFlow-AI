@@ -14,10 +14,14 @@ from firebase_config import firebase_admin_configured, validate_firebase_environ
 from routes import (  # noqa: E402
     audit_router,
     auth_router,
+    candidates_router,
     certificate_router,
+    domain_router,
     explain_router,
+    governance_router,
     health_router,
     inspection_router,
+    mitigation_router,
 )
 from seed_sample_audit import ensure_sample_audits  # noqa: E402
 from vertex_model import validate_vertex_environment, use_vertex_ai  # noqa: E402
@@ -61,6 +65,10 @@ def root():
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(audit_router, tags=["audit"])
+app.include_router(domain_router, tags=["domain"])
+app.include_router(candidates_router, tags=["candidates"])
+app.include_router(mitigation_router, tags=["mitigation"])
+app.include_router(governance_router, tags=["governance"])
 app.include_router(explain_router, tags=["explain"])
 app.include_router(inspection_router, tags=["inspection"])
 app.include_router(certificate_router, tags=["certificate"])

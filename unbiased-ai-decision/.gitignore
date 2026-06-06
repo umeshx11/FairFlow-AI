@@ -1,2 +1,8 @@
 .env
+docker/.env
 backend/serviceAccountKey.json
+backend/.venv/
+flutter-app/.dart_tool/
+flutter-app/build/
+flutter-app/.flutter-plugins
+flutter-app/.flutter-plugins-dependencies

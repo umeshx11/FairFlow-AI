@@ -223,6 +223,7 @@ SECRET_KEY=change-me-in-production
 POSTGRES_USER=fairlens
 POSTGRES_PASSWORD=fairlens
 POSTGRES_DB=fairlens
+CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://eco-crow-439708-k8.web.app,https://eco-crow-439708-k8.firebaseapp.com
 ```
 
 ### `backend/.env`
@@ -234,6 +235,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/fairlens
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
+CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://eco-crow-439708-k8.web.app,https://eco-crow-439708-k8.firebaseapp.com
 ```
 
 ## Frontend routes
