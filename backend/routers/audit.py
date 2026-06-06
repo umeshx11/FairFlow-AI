@@ -1,4 +1,6 @@
 from io import BytesIO
+import os
+import google.generativeai as genai
 from typing import Any
 from uuid import UUID
 
@@ -362,6 +364,174 @@ def get_audit(
     if not audit:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audit not found.")
     return serialize_audit(audit)
+
+@router.get("/{audit_id}/gemini-summary")
+async def get_gemini_summary(
+    audit_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from models import Audit
+    import google.generativeai as genai
+    import os
+    
+    audit = db.query(Audit).filter(
+        Audit.id == audit_id,
+        Audit.user_id == current_user.id
+    ).first()
+    
+    if not audit:
+        raise HTTPException(
+            status_code=404, 
+            detail="Audit not found"
+        )
+    
+    di = float(audit.disparate_impact or 0)
+    spd = float(audit.stat_parity_diff or 0)
+    eod = float(audit.equal_opp_diff or 0)
+    
+    from utils import serialize_audit
+    serialized = serialize_audit(audit)
+    score = float(serialized.get("fairness_score", 50))
+    
+    domain_config = audit.domain_config or {}
+    domain = str(domain_config.get("domain", "hiring"))
+    dataset = str(audit.dataset_name or "dataset")
+    
+    if di < 0.6:
+        risk_level = "high"
+    elif di < 0.8:
+        risk_level = "medium"
+    else:
+        risk_level = "low"
+    
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    
+    if gemini_api_key and gemini_api_key != "your-actual-key-here":
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel(
+                "gemini-1.5-flash"
+            )
+            
+            prompt = f"""You are a fairness compliance 
+officer writing a report for a non-technical 
+HR manager or hospital administrator.
+
+Audit data:
+- Domain: {domain}
+- Dataset: {dataset}
+- Disparate Impact: {di:.4f} 
+  (must be above 0.80 to pass)
+- Statistical Parity Difference: {spd:.4f}
+  (must be between -0.10 and 0.10 to pass)
+- Equal Opportunity Difference: {eod:.4f}
+- Overall Fairness Score: {score:.0f} out of 100
+
+Write exactly 3 short paragraphs. 
+Use plain English only. No bullet points. 
+No technical terms without explanation.
+No markdown formatting.
+
+Paragraph 1 (2-3 sentences): What bias was 
+found and which group is most affected. 
+Use the actual numbers.
+
+Paragraph 2 (2-3 sentences): What the legal 
+or business risk is if this is not fixed. 
+Mention one specific law: EEOC for hiring in 
+the US, EU AI Act for Europe, or India IT Act 
+for healthcare or lending in India.
+
+Paragraph 3 (1-2 sentences): The single most 
+important action to take this week. Be specific.
+
+End with exactly one sentence starting with 
+the words "Bottom line:" on a new line.
+
+Keep total response under 180 words."""
+
+            response = model.generate_content(prompt)
+            full_text = response.text.strip()
+            
+            summary = full_text
+            bottom_line = ""
+            
+            if "Bottom line:" in full_text:
+                parts = full_text.split("Bottom line:")
+                summary = parts[0].strip()
+                bottom_line = "Bottom line:" + parts[1].strip()
+            
+            return {
+                "summary": summary,
+                "bottom_line": bottom_line,
+                "risk_level": risk_level,
+                "disparate_impact": di,
+                "fairness_score": score,
+                "domain": domain,
+                "source": "gemini-1.5-flash"
+            }
+            
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+            # Fall through to fallback below
+    
+    # Fallback if API key missing or API fails
+    if di < 0.8:
+        summary = (
+            f"This {domain} dataset shows a Disparate "
+            f"Impact of {di:.2f}, which is below the "
+            f"legal threshold of 0.80. This means certain "
+            f"demographic groups are being selected at "
+            f"significantly lower rates than others, "
+            f"despite comparable qualifications. "
+            f"The overall fairness score is "
+            f"{score:.0f}/100, indicating meaningful "
+            f"bias risk in the current decision model. "
+            f"Under equal opportunity regulations, a "
+            f"Disparate Impact below 0.80 constitutes "
+            f"evidence of discriminatory selection that "
+            f"creates legal and reputational risk for "
+            f"your organization. "
+            f"This week, apply the reweighing mitigation "
+            f"strategy and manually review all rejected "
+            f"candidates from affected groups with "
+            f"strong qualifications."
+        )
+        bottom_line = (
+            f"Bottom line: Do not deploy this {domain} "
+            f"model in production until the Disparate "
+            f"Impact rises above 0.80 through verified "
+            f"mitigation."
+        )
+    else:
+        summary = (
+            f"This {domain} dataset shows a Disparate "
+            f"Impact of {di:.2f}, which meets the legal "
+            f"threshold of 0.80. No critical demographic "
+            f"gaps were detected in the current decision "
+            f"patterns. The fairness score of "
+            f"{score:.0f}/100 indicates the model is "
+            f"operating within acceptable parameters. "
+            f"Continue monitoring monthly and re-audit "
+            f"after any changes to your pipeline or "
+            f"team composition."
+        )
+        bottom_line = (
+            f"Bottom line: Model meets the fairness "
+            f"threshold. Schedule the next audit in "
+            f"30 days and monitor for drift."
+        )
+    
+    return {
+        "summary": summary,
+        "bottom_line": bottom_line,
+        "risk_level": risk_level,
+        "disparate_impact": di,
+        "fairness_score": score,
+        "domain": domain,
+        "source": "fallback"
+    }
 
 
 @router.post("/upload-multimodal", response_model=MultimodalAuditResponse)

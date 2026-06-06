@@ -239,6 +239,9 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="text-center text-[13px] text-amber-600/90 font-medium">
+        83% of companies use AI in decisions. Fewer than 12% audit for bias. FairFlow fixes that.
+      </div>
       {loadError && (
         <div className="section-card border border-amber-200 bg-amber-50/70">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -312,6 +315,40 @@ function Dashboard() {
           trend={`${stats.mitigatedAudits}/${audits.length} with action`}
           accent="bg-emerald-50 text-emerald-700"
         />
+      </div>
+
+      <div className="section-card bg-[linear-gradient(135deg,#0f172a_0%,#1e293b_55%,#334155_100%)] text-white text-center p-8">
+        <h3 className="text-2xl font-bold text-white">INDICASA Bias Dimensions</h3>
+        <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-amber-light">India-first protected attribute coverage</p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-purple-500/20 px-4 py-2 text-sm font-medium text-purple-200 ring-1 ring-inset ring-purple-500/30">
+            <span className="h-2 w-2 rounded-full bg-purple-400"></span>
+            Gender
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-orange-500/20 px-4 py-2 text-sm font-medium text-orange-200 ring-1 ring-inset ring-orange-500/30">
+            <span className="h-2 w-2 rounded-full bg-orange-400"></span>
+            Caste
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-4 py-2 text-sm font-medium text-blue-200 ring-1 ring-inset ring-blue-500/30">
+            <span className="h-2 w-2 rounded-full bg-blue-400"></span>
+            Religion
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-200 ring-1 ring-inset ring-emerald-500/30">
+            <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+            Ethnicity
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-rose-500/20 px-4 py-2 text-sm font-medium text-rose-200 ring-1 ring-inset ring-rose-500/30">
+            <span className="h-2 w-2 rounded-full bg-rose-400"></span>
+            Disability
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-200 ring-1 ring-inset ring-yellow-500/30">
+            <span className="h-2 w-2 rounded-full bg-yellow-400"></span>
+            Region
+          </span>
+        </div>
+        <p className="mt-6 text-sm text-slate-300">
+          FairFlow detects proxy bias across all 6 dimensions — the only auditing platform built for India's social context.
+        </p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">

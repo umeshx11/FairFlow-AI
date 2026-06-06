@@ -175,9 +175,6 @@ function ProtectedLayout() {
                   </h2>
                 </div>
               </div>
-              <div className="hidden rounded-full border border-amber/30 bg-amber/10 px-4 py-2 text-sm font-medium text-amber-dark sm:block">
-                Live on localhost:3000
-              </div>
             </div>
           </header>
 
@@ -189,10 +186,7 @@ function ProtectedLayout() {
 
           <footer className="border-t border-slate-200 bg-white/90 px-4 py-4 sm:px-6 lg:px-8">
             <div className="mx-auto flex max-w-7xl flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-              <p>FairFlow AI • Glass Box Fairness Governance</p>
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 font-semibold uppercase tracking-[0.14em] text-indigo-700">
-                Powered by IndiCASA
-              </div>
+              <p>FairFlow AI • Reducing AI Discrimination in Hiring, Lending & Healthcare • SDG 10.3</p>
             </div>
           </footer>
         </div>

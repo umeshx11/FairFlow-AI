@@ -101,7 +101,22 @@ def mitigate_audit(
     prejudice_accuracy = _stage_accuracy(y_true, mitigation_result["after_prejudice_remover"].get("predictions", []))
     equalized_accuracy = _stage_accuracy(y_true, mitigation_result["after_equalized_odds"].get("predictions", []))
     fairness_before = calculate_fairness_score(mitigation_result["original"])
-    fairness_after = calculate_fairness_score(mitigation_result["after_equalized_odds"])
+    
+    scores = {
+        "Reweighing": calculate_fairness_score(mitigation_result["after_reweighing"]),
+        "Prejudice Remover": calculate_fairness_score(mitigation_result["after_prejudice_remover"]),
+        "Equalized Odds": calculate_fairness_score(mitigation_result["after_equalized_odds"]),
+    }
+    
+    best_strategy = max(scores, key=scores.get)
+    best_score = scores[best_strategy]
+    
+    if best_score <= fairness_before:
+        recommendation = "Manual review required — no strategy improved all metrics."
+        fairness_after = fairness_before
+    else:
+        recommendation = best_strategy
+        fairness_after = best_score
 
     audit.mitigation_results = {
         "original": mitigation_result["original"],
@@ -124,7 +139,7 @@ def mitigate_audit(
         audit=audit,
         stage="mitigation",
         metadata={
-            "method": "equalized_odds",
+            "method": best_strategy if best_score > fairness_before else "manual_review",
             "accuracy_delta": round(equalized_accuracy - original_accuracy, 4),
             "fairness_lift": round(fairness_after - fairness_before, 2),
         },
@@ -148,6 +163,7 @@ def mitigate_audit(
         "fairness_score_before": fairness_score_before,
         "fairness_score_after": fairness_score_after,
         "mitigated_candidates": mitigated_candidates,
+        "recommendation": recommendation,
     }
 
 
