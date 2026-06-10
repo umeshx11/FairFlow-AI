@@ -460,7 +460,7 @@ async def get_gemini_summary(
         try:
             genai.configure(api_key=gemini_api_key)
             model = genai.GenerativeModel(
-                "gemini-2.5-flash"
+                "gemini-flash-latest"
             )
             
             prompt = f"""You are a fairness compliance 
@@ -525,7 +525,7 @@ Keep total response under 180 words."""
                 "disparate_impact": di,
                 "fairness_score": score,
                 "domain": domain,
-                "source": "gemini-1.5-flash"
+                "source": "gemini-flash-latest"
             }
             
         except Exception as e:
