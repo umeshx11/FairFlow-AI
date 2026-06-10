@@ -128,7 +128,7 @@ async def extract_candidate(file: UploadFile) -> CandidateExtraction:
     genai.configure(api_key=api_key)
 
     # Build Gemini request with structured output
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-flash-latest")
 
     prompt = """You are a data extraction assistant for an AI fairness auditing platform.
 
