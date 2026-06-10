@@ -26,6 +26,7 @@ OBC_SURNAMES = [
     "gujjar", "ahir", "jat", "saini",
     "teli", "khatik", "lohar", "luhar",
     "kumhar", "darji", "nai", "hajam",
+    "kumar",
 ]
 
 SC_SURNAMES = [
@@ -58,6 +59,10 @@ CHRISTIAN_SURNAMES = [
     "philip", "jacob", "john", "paul",
 ]
 
+JAIN_SURNAMES = [
+    "jain",
+]
+
 NORTH_INDIA_STATES = [
     "uttar pradesh", "bihar", "rajasthan",
     "madhya pradesh", "haryana", "punjab",
@@ -87,6 +92,8 @@ def infer_caste_group(surname: str) -> str:
         return "SC"
     elif s in ST_SURNAMES:
         return "ST"
+    elif s in JAIN_SURNAMES:
+        return "Jain"
     else:
         return "Unknown"
 
@@ -97,6 +104,8 @@ def infer_religion(surname: str) -> str:
         return "Muslim"
     elif s in CHRISTIAN_SURNAMES:
         return "Christian"
+    elif s in JAIN_SURNAMES:
+        return "Jain"
     elif s in UPPER_CASTE_SURNAMES + OBC_SURNAMES:
         return "Hindu (likely)"
     else:
@@ -319,5 +328,7 @@ def run_india_bias_scan(
     results["india_fairness_score"] = max(
         100 - penalties, 0
     )
+    
+    results["methodology_note"] = "Surname-to-caste inference is probabilistic. Results are signals for investigation, not ground truth determinations."
     
     return results

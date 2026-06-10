@@ -180,7 +180,7 @@ def mitigate_audit(
     if gemini_api_key:
         try:
             genai.configure(api_key=gemini_api_key)
-            model = genai.GenerativeModel("gemini-flash-latest")
+            model = genai.GenerativeModel("gemini-1.5-flash")
             
             prompt = f"""You are an AI Compliance Officer reviewing mitigation results for a {domain} decision system.
 

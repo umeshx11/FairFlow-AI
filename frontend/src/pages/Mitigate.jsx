@@ -9,7 +9,8 @@ import {
   LoaderCircle,
   Sparkles,
   TrendingUp,
-  XCircle
+  XCircle,
+  Info
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -248,7 +249,7 @@ function Mitigate() {
         localStorage.getItem("access_token");
         
       const response = await fetch(
-        `http://localhost:8000/audit/${auditId}/google-doc-report`,
+        `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/audit/${auditId}/google-doc-report`,
         {
           method: "POST",
           headers: {
@@ -617,9 +618,16 @@ function Mitigate() {
                   >
                     {mitigationSummary.badge}
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 group relative">
                     <TrendingUp className="h-3.5 w-3.5 text-amber-dark" />
                     Fairness score {result.fairness_score_before}% → {result.fairness_score_after}%
+                    <div className="relative flex items-center">
+                      <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-help" />
+                      <div className="absolute bottom-full left-1/2 mb-2 w-64 -translate-x-1/2 rounded-xl bg-slate-900 p-3 text-xs text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 pointer-events-none">
+                        This shows FairFlow audits mitigation quality, not just bias.
+                        <div className="absolute top-full left-1/2 -mt-1 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                      </div>
+                    </div>
                   </span>
                   <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                     {passingMetrics.length} of {Object.keys(metricLabels).length} checks in range

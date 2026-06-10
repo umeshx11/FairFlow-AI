@@ -287,7 +287,7 @@ async def upload_audit(
     db.flush()
 
     candidates: list[Candidate] = []
-    EXPLAIN_LIMIT = 50  # Only compute expensive SHAP/counterfactuals for first N rows
+    EXPLAIN_LIMIT = 10000  # Compute expensive SHAP/counterfactuals for more rows
     decision_column = detection_result.get("label_column", "hired")
     feature_frame = detection_result["encoded_features"]
     normalized_df = detection_result["normalized_dataframe"]
@@ -460,7 +460,7 @@ async def get_gemini_summary(
         try:
             genai.configure(api_key=gemini_api_key)
             model = genai.GenerativeModel(
-                "gemini-flash-latest"
+                "gemini-1.5-flash"
             )
             
             prompt = f"""You are a fairness compliance 
@@ -525,7 +525,7 @@ Keep total response under 180 words."""
                 "disparate_impact": di,
                 "fairness_score": score,
                 "domain": domain,
-                "source": "gemini-flash-latest"
+                "source": "gemini-1.5-flash"
             }
             
         except Exception as e:
