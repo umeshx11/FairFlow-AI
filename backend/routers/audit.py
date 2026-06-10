@@ -460,7 +460,7 @@ async def get_gemini_summary(
         try:
             genai.configure(api_key=gemini_api_key)
             model = genai.GenerativeModel(
-                "gemini-1.5-flash"
+                "gemini-2.5-flash"
             )
             
             prompt = f"""You are a fairness compliance 
