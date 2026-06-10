@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 from sqlalchemy.orm import Session
 
 from agent.memory_store import RetrievedMemory, retrieve_memories
-from agent.prompts import ACT_PROMPT, ANALYZE_PROMPT, OBSERVE_PROMPT, REPORT_PROMPT
+from agent.prompts import ACT_PROMPT, ANALYZE_PROMPT, OBSERVE_PROMPT
 from models import Audit
 from utils import calculate_fairness_score
 

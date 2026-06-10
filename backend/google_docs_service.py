@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 import os
 from datetime import datetime
 from pathlib import Path
@@ -67,7 +66,7 @@ def create_governance_report(
     gemini_summary: str | None = None,
     share_with_email: str | None = None,
 ) -> dict[str, str]:
-    print(f"Attempting Google Docs creation...")
+    print("Attempting Google Docs creation...")
     print(f"SA path env: {os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')}")
     print(f"DOCS_ENABLED: {os.getenv('GOOGLE_DOCS_ENABLED')}")
     

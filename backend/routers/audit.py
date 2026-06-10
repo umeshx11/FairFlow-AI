@@ -423,8 +423,6 @@ async def get_gemini_summary(
     current_user: User = Depends(get_current_user)
 ):
     from models import Audit
-    import google.generativeai as genai
-    import os
     
     audit = db.query(Audit).filter(
         Audit.id == audit_id,
@@ -576,9 +574,9 @@ Keep total response under 180 words."""
             f"team composition."
         )
         bottom_line = (
-            f"Bottom line: Model meets the fairness "
-            f"threshold. Schedule the next audit in "
-            f"30 days and monitor for drift."
+            "Bottom line: Model meets the fairness "
+            "threshold. Schedule the next audit in "
+            "30 days and monitor for drift."
         )
     
     return {
