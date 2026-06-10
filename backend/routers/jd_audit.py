@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 import google.generativeai as genai
 
