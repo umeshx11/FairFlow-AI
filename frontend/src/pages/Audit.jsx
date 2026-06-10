@@ -60,7 +60,8 @@ function Audit() {
     
     setGeminiLoading(true);
     
-    const token = localStorage.getItem("token") || 
+    const token = report?.demo_token || 
+      localStorage.getItem("token") || 
       localStorage.getItem("access_token") ||
       localStorage.getItem("fairlens_token");
     
@@ -73,7 +74,12 @@ function Audit() {
         }
       }
     )
-    .then(r => r.json())
+    .then(r => {
+      if (!r.ok) {
+        throw new Error("Failed to fetch gemini summary");
+      }
+      return r.json();
+    })
     .then(d => {
       setGeminiData(d);
       setGeminiLoading(false);
@@ -81,6 +87,7 @@ function Audit() {
     .catch(err => {
       console.error("Gemini fetch error:", err);
       setGeminiLoading(false);
+      // set to a default fallback structure if you want, or just leave it null
     });
   }, [report?.audit?.id]);
 

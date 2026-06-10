@@ -106,7 +106,7 @@ async def analyze_job_description(
         try:
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel(
-                "gemini-2.5-flash"
+                "gemini-flash-latest"
             )
             
             biased_words_str = ", ".join(
