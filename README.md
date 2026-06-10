@@ -1,3 +1,24 @@
+## The Problem
+83% of Fortune 500 companies use AI in hiring.
+Fewer than 12% audit these systems for bias.
+FairFlow AI fixes that in under 2 minutes,
+without writing a single line of code.
+
+## Why FairFlow beats existing tools
+
+| Feature | IBM AIF360 | Google What-If | FairFlow AI |
+|---------|-----------|----------------|-------------|
+| No code needed | ❌ | ❌ | ✅ |
+| Gemini plain-language verdicts | ❌ | ❌ | ✅ |
+| India bias dimensions (caste/religion) | ❌ | ❌ | ✅ |
+| PDF governance report | ❌ | ❌ | ✅ |
+| WASM browser privacy shield | ❌ | ❌ | ✅ |
+| 3-way mitigation comparison | ❌ | ❌ | ✅ |
+| Works on mobile | ❌ | ❌ | ✅ |
+
+SDG 10.3 • Reducing AI Discrimination in 
+Hiring, Lending & Healthcare
+
 # FairFlow AI
 
 FairFlow AI is a full-stack fairness auditing platform for AI-driven hiring, lending, and healthcare workflows. It lets teams upload decision outcome CSVs, measure bias metrics, inspect subject-level explanations, test counterfactual sensitivity, compare mitigation strategies, and export audit-ready PDF reports.

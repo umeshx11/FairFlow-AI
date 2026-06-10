@@ -1,3 +1,17 @@
+## ⚡ 30-Second Summary
+
+83% of Fortune 500 companies use AI in hiring, 
+lending, and healthcare decisions. Fewer than 12% 
+audit these systems for bias before deployment.
+
+FairFlow AI fixes that. Upload a CSV → get SHAP 
+explanations, causal proxy detection, 3-way 
+mitigation comparison, and a Gemini plain-language 
+verdict in under 2 minutes. No code required.
+
+Built for the people harmed by hidden bias — 
+not just the engineers who build the models.
+
 # 🌍 FairFlow AI — Google Solution Challenge 2026 Submission
 
 FairFlow AI is a fairness-auditing platform built to help organizations detect discriminatory patterns in hiring, lending, and healthcare decision systems before those systems harm real people. It combines explainable AI, mobile-first reporting, and Google Cloud services so non-technical reviewers can move from a CSV upload to an actionable fairness report in minutes.
@@ -25,8 +39,11 @@ docker compose up --build
 
 ## 🔗 Live Links
 
-- Live demo URL: `[PLACEHOLDER — fill in after Cloud Run deploy]`
-- Demo video: `[PLACEHOLDER — fill in YouTube URL]`
+- Live demo: `docker compose up --build` 
+  then open http://localhost:3000
+  (Backend also deployed at: 
+  https://fairflow-ai-1056539416381.asia-south1.run.app)
+- Demo video: [Record and add before final submission]
 
 ## ☁️ Google Technology Stack
 
@@ -72,6 +89,33 @@ Across the three sessions, the product changed in direct response to what users 
 | Microsoft Fairlearn | Excellent Python fairness metrics and `MetricFrame` flexibility | FairFlow turns fairness analysis into a production UX with mobile reporting and plain-language interpretation |
 
 Full comparison: `docs/competitive-analysis.md`
+
+## 🇮🇳 Why FairFlow Is Built for India
+
+Western fairness tools detect gender and 
+race bias. In India, the most common forms 
+of discrimination are invisible to these tools:
+
+| Bias Type | IBM AIF360 | Google What-If | FairFlow AI |
+|-----------|-----------|----------------|-------------|
+| Caste discrimination | ❌ | ❌ | ✅ |
+| Religion bias | ❌ | ❌ | ✅ |
+| Surname proxy detection | ❌ | ❌ | ✅ |
+| Regional bias (North/South) | ❌ | ❌ | ✅ |
+| Dialect discrimination | ❌ | ❌ | ✅ |
+| Article 15/16 compliance | ❌ | ❌ | ✅ |
+| RBI Fair Practice alignment | ❌ | ❌ | ✅ |
+| SC/ST Atrocities Act | ❌ | ❌ | ✅ |
+
+India has 200+ million people from 
+Scheduled Castes and Scheduled Tribes. 
+A hiring tool that cannot detect caste 
+discrimination is not a fairness tool 
+for India — it is a Western tool 
+applied incorrectly.
+
+FairFlow AI detects bias the way India 
+actually experiences it.
 
 ## ✅ Why This Submission Is Distinct
 

@@ -187,4 +187,7 @@ export const downloadReport = async (auditId) => {
   }
 };
 
+export const deleteAudit = async (auditId) =>
+  performRequest(() => api.delete(`/audit/${auditId}`), "Could not delete audit.");
+
 export default api;

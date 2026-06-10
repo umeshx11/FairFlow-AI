@@ -9,6 +9,7 @@ import DomainSelector from "../components/DomainSelector";
 import FairnessReportCard from "../components/FairnessReportCard";
 import GeminiSummaryCard from "../components/GeminiSummaryCard";
 import LocalWasmPrecheckCard from "../components/LocalWasmPrecheckCard";
+import ResumeImageUploader from "../components/ResumeImageUploader";
 import { buildEthosInputFromCsvText } from "../wasm/csvAuditInput";
 import { runEthosPipeline } from "../wasm/ethosEngine";
 import { sanitizeCsvForUpload } from "../wasm/privacyShield";
@@ -305,6 +306,38 @@ function Audit() {
 
       {step === 1 && (
         <>
+          <section className="section-card border border-amber-200 bg-amber-50/30">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📸</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                  New — Multimodal Audit
+                </p>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Audit from a photo
+                </h3>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-5">
+              Skip the CSV. Photograph a physical resume, triage form, or application — Gemini 2.5 Pro extracts the data and runs the bias audit instantly.
+            </p>
+            <ResumeImageUploader 
+              onExtracted={(data) => {
+                console.log("Extracted candidate data:", data);
+              }}
+            />
+          </section>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200"/>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-4 text-sm text-slate-500 font-medium">
+                or upload a CSV dataset
+              </span>
+            </div>
+          </div>
           <DomainSelector templates={templates} selectedDomain={selectedTemplate?.domain} onSelect={setDomain} />
           <div className="flex justify-end">
             <button

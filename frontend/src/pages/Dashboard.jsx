@@ -10,11 +10,11 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import { ArrowUpRight, FolderSearch, Gauge, ShieldAlert, ShieldCheck, Users } from "lucide-react";
+import { ArrowUpRight, FolderSearch, Gauge, ShieldAlert, ShieldCheck, Trash2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
-import { LAST_AUDIT_STORAGE_KEY, listAudits } from "../api/fairlensApi";
+import { LAST_AUDIT_STORAGE_KEY, deleteAudit, listAudits } from "../api/fairlensApi";
 
 const ethnicityColors = ["#2563eb", "#ec4899", "#16a34a", "#f97316"];
 
@@ -85,6 +85,7 @@ function Dashboard() {
   const [audits, setAudits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchAudits = async () => {
     setLoading(true);
@@ -106,6 +107,19 @@ function Dashboard() {
   useEffect(() => {
     fetchAudits();
   }, []);
+
+  const handleDelete = async (auditId, datasetName) => {
+    if (!window.confirm(`Permanently delete "${datasetName}" and all its candidate data? This cannot be undone.`)) return;
+    setDeletingId(auditId);
+    try {
+      await deleteAudit(auditId);
+      setAudits((prev) => prev.filter((a) => a.id !== auditId));
+    } catch {
+      // toast already shown by performRequest
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const latestAudit = audits[0];
   const stats = useMemo(() => {
@@ -351,6 +365,66 @@ function Dashboard() {
         </p>
       </div>
 
+      <div className="rounded-xl border border-orange-200 bg-orange-50/30 p-6">
+        <p className="text-xs font-semibold text-orange-600 tracking-widest uppercase mb-2">
+          India-First Compliance
+        </p>
+        <h3 className="text-xl font-bold text-slate-900 mb-3">
+          Built for India's Social Reality
+        </h3>
+        
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              Protected by
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              Article 15 & 16
+            </p>
+            <p className="text-xs text-slate-500">
+              Constitution of India
+            </p>
+          </div>
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              SC/ST Protection
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              Atrocities Act 1989
+            </p>
+            <p className="text-xs text-slate-500">
+              Employment provisions
+            </p>
+          </div>
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              Lending fairness
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              RBI Fair Practice Code
+            </p>
+            <p className="text-xs text-slate-500">
+              Equal credit access
+            </p>
+          </div>
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              Healthcare equity
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              NHP 2017
+            </p>
+            <p className="text-xs text-slate-500">
+              Universal health coverage
+            </p>
+          </div>
+        </div>
+        
+        <p className="text-sm text-slate-600">
+          FairFlow is the only bias auditing platform that detects caste, religion, and regional discrimination — the three forms of bias most common in Indian workplaces, banks, and hospitals.
+        </p>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="section-card">
           <div className="flex items-center justify-between">
@@ -489,7 +563,7 @@ function Dashboard() {
                       </span>
                     </td>
                     <td className="px-3 py-4">
-                      <div className="flex flex-wrap gap-2">
+                       <div className="flex flex-wrap gap-2">
                         <Link
                           to={`/candidates/${audit.id}`}
                           className="rounded-full border border-slate-200 px-3 py-1 font-medium text-slate-700 transition hover:border-amber hover:text-amber-dark"
@@ -502,6 +576,24 @@ function Dashboard() {
                         >
                           Mitigate
                         </Link>
+                        <button
+                          onClick={() => handleDelete(audit.id, audit.dataset_name)}
+                          disabled={deletingId === audit.id}
+                          title="Delete audit (GDPR right to erasure)"
+                          className="rounded-full border border-rose-200 px-3 py-1 font-medium text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          {deletingId === audit.id ? (
+                            <span className="flex items-center gap-1">
+                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-rose-400 border-t-transparent" />
+                              Deleting...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Trash2 className="h-3 w-3" />
+                              Delete
+                            </span>
+                          )}
+                        </button>
                       </div>
                     </td>
                   </tr>

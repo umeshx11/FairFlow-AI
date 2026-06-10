@@ -154,6 +154,64 @@ def mitigate_audit(
         if candidate.mitigated_decision is not None and candidate.mitigated_decision != candidate.original_decision
     )
 
+    original_di = float(audit.disparate_impact or 0.0)
+    original_spd = float(audit.stat_parity_diff or 0.0)
+    original_score = float(fairness_before)
+    
+    if recommendation == "Manual review required — no strategy improved all metrics.":
+        mitigated_di = original_di
+        mitigated_spd = original_spd
+        mitigated_score = float(fairness_after)
+    else:
+        best_key = "after_" + best_strategy.lower().replace(" ", "_")
+        best_metrics = mitigation_result[best_key]
+        mitigated_di = float(best_metrics.get("disparate_impact", 0.0))
+        mitigated_spd = float(best_metrics.get("stat_parity_diff", 0.0))
+        mitigated_score = float(fairness_after)
+        
+    domain = str(audit.domain_config.get("domain", "business")) if audit.domain_config else "business"
+
+    import os
+    import google.generativeai as genai
+
+    gemini_action_plan = None
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+
+    if gemini_api_key:
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel("gemini-2.5-flash")
+            
+            prompt = f"""You are an AI Compliance Officer reviewing mitigation results for a {domain} decision system.
+
+BEFORE mitigation:
+- Disparate Impact: {original_di:.4f} (threshold: must be > 0.80)
+- Statistical Parity Diff: {original_spd:.4f}
+- Fairness Score: {original_score:.0f}/100
+
+AFTER best mitigation ({best_strategy} strategy):
+- Disparate Impact: {mitigated_di:.4f}
+- Statistical Parity Diff: {mitigated_spd:.4f}  
+- Fairness Score: {mitigated_score:.0f}/100
+
+Write exactly 3 bullet points.
+Each bullet: one sentence, plain English, no jargon, actionable.
+
+Bullet 1: What the mitigation achieved (use actual numbers).
+Bullet 2: Whether the model is now safe to use or still needs work.
+Bullet 3: The single most important next step this week.
+
+Start each bullet with "•"
+Keep total under 80 words.
+No headers. No markdown. Just 3 bullets."""
+
+            response = model.generate_content(prompt)
+            gemini_action_plan = response.text.strip()
+            
+        except Exception as e:
+            print(f"Gemini action plan error: {e}")
+            gemini_action_plan = None
+
     return {
         "audit_id": audit.id,
         "original": metric_payload(mitigation_result["original"]),
@@ -164,6 +222,7 @@ def mitigate_audit(
         "fairness_score_after": fairness_score_after,
         "mitigated_candidates": mitigated_candidates,
         "recommendation": recommendation,
+        "gemini_action_plan": gemini_action_plan,
     }
 
 

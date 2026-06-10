@@ -11,11 +11,52 @@ function LoginPage() {
     email: "",
     password: ""
   });
-  const [loading, setLoading] = useState(false);
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleGuestDemo = async () => {
+    setIsDemoLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        "http://localhost:8000/demo/run",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Demo failed to load.");
+      }
+      const data = await response.json();
+
+      // Store real JWT under the key App.jsx reads (fairlens_token)
+      localStorage.setItem("fairlens_token", data.demo_token);
+      localStorage.setItem("fairlens_user_email", "demo@fairflow.ai");
+      localStorage.setItem("fairlens_user_id", data.demo_user_id);
+      // Store the audit id so the sidebar links work
+      localStorage.setItem("fairlens_last_audit_id", data.demo_audit_id);
+      // Demo flag for the amber banner
+      localStorage.setItem("demo_mode", "true");
+
+      // Dispatch the same event fairlensApi uses so App.jsx re-reads the token
+      window.dispatchEvent(new Event("fairlens:auth-state-changed"));
+
+      // Navigate to dashboard — it will load the demo audit from the real DB
+      navigate("/dashboard", { replace: true });
+
+    } catch (err) {
+      setError(err.message || "Demo failed to load. Please try again.");
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setLoading(true);
+    setIsLoginLoading(true);
     try {
       const response = await login(formData);
       persistSession(response);
@@ -23,7 +64,7 @@ function LoginPage() {
     } catch (error) {
       return;
     } finally {
-      setLoading(false);
+      setIsLoginLoading(false);
     }
   };
 
@@ -95,13 +136,47 @@ function LoginPage() {
               </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isLoginLoading || isDemoLoading}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-4 py-3 text-sm font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? <Spinner /> : <ArrowRight className="h-4 w-4" />}
-                {loading ? "Signing in..." : "Sign In"}
+                {isLoginLoading ? <Spinner /> : <ArrowRight className="h-4 w-4" />}
+                {isLoginLoading ? "Signing in..." : "Sign In"}
               </button>
             </form>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"/>
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-4 text-xs text-slate-400 font-medium uppercase tracking-widest">
+                  or
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleGuestDemo}
+              disabled={isLoginLoading || isDemoLoading}
+              className="w-full flex items-center justify-center gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 hover:bg-amber-100 transition-all disabled:opacity-50"
+            >
+              {isDemoLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-800 border-t-transparent" />
+                  <span>Loading Demo (Takes ~15s)...</span>
+                </div>
+              ) : (
+                <>
+                  <span className="text-lg">⚡</span>
+                  <div className="text-left">
+                    <p className="font-bold">Try Live Demo</p>
+                    <p className="text-xs font-normal text-amber-600">
+                      See a real bias audit — no account needed
+                    </p>
+                  </div>
+                </>
+              )}
+            </button>
 
             <p className="mt-6 text-sm text-slate-500">
               New to the platform?{" "}
