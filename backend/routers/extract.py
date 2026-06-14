@@ -24,11 +24,9 @@ GEMINI_TIMEOUT_SECONDS = 30
 
 class CandidateExtraction(BaseModel):
     name: str = Field(
-        default="Unknown",
         description="Candidate name as written on the resume. Use Unknown if unreadable or absent.",
     )
     age: int = Field(
-        default=0,
         description=(
             "Age of the candidate in years. "
             "Infer from graduation year if not stated directly. "
@@ -36,7 +34,6 @@ class CandidateExtraction(BaseModel):
         ),
     )
     gender: Literal["Male", "Female", "Unknown"] = Field(
-        default="Unknown",
         description=(
             "Gender of the candidate. "
             "Infer from name or pronouns if not stated. "
@@ -44,11 +41,9 @@ class CandidateExtraction(BaseModel):
         ),
     )
     ethnicity: str = Field(
-        default="Unknown",
         description="Ethnicity as stated or reasonably available in the resume. Use Unknown if absent.",
     )
     education_level: Literal["Tier 1", "Tier 2", "Tier 3", "Unknown"] = Field(
-        default="Unknown",
         description=(
             "Education tier based on institution prestige. "
             "Tier 1: IITs, IIMs, BITS, NIT Top 5, Ivy League, Oxbridge. "
@@ -58,7 +53,6 @@ class CandidateExtraction(BaseModel):
         ),
     )
     years_experience: float = Field(
-        default=0.0,
         description=(
             "Total years of professional work experience as a float. "
             "Calculate from work history dates if listed. "
@@ -66,30 +60,24 @@ class CandidateExtraction(BaseModel):
         ),
     )
     skills: str = Field(
-        default="",
         description="Comma-separated skills found in the resume. Empty string if none are listed.",
     )
     previous_companies: str = Field(
-        default="",
         description="Comma-separated previous employers found in the resume. Empty string if none are listed.",
     )
     caste: str = Field(
-        default="Unknown",
         description="Caste only if explicitly written on the resume. Never infer. Use Unknown otherwise.",
     )
     religion: str = Field(
-        default="Unknown",
         description="Religion only if explicitly written on the resume. Never infer. Use Unknown otherwise.",
     )
     disability_status: str = Field(
-        default="Unknown",
         description=(
             "Disability status only if explicitly written on the resume. "
             "Never infer. Use Unknown otherwise."
         ),
     )
     region: str = Field(
-        default="Unknown",
         description="Candidate region, location, state, or country as stated or reasonably available.",
     )
 
