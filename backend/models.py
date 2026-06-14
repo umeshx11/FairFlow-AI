@@ -19,6 +19,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     audits = relationship("Audit", back_populates="user", cascade="all, delete-orphan")
+    resume_submissions = relationship("ResumeSubmission", back_populates="user", cascade="all, delete-orphan")
 
 
 class Audit(Base):
@@ -94,6 +95,24 @@ class AuditCertificate(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     audit = relationship("Audit", back_populates="certificates")
+
+
+class ResumeSubmission(Base):
+    __tablename__ = "resume_submissions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    domain = Column(String(64), nullable=False, default="hiring", index=True)
+    age = Column(Integer, nullable=False, default=0)
+    gender = Column(String(64), nullable=False, default="Unknown", index=True)
+    education_tier = Column(String(64), nullable=False, default="Unknown")
+    years_experience = Column(Float, nullable=False, default=0.0)
+    outcome = Column(Integer, nullable=False)
+    bias_result = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    bias_detected = Column(Boolean, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = relationship("User", back_populates="resume_submissions")
 
 
 class DomainTemplate(Base):

@@ -318,21 +318,23 @@ function Audit() {
               <span className="text-2xl">📸</span>
               <div>
                 <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                  Upload Resumes
+                </p>
+                <p className="hidden">
                   New — Multimodal Audit
                 </p>
                 <h3 className="text-xl font-bold text-slate-900">
-                  Audit from a photo
+                  Extract resumes and review candidates
                 </h3>
               </div>
             </div>
             <p className="text-sm text-slate-600 mb-5">
+              Skip the CSV. Upload up to 50 resume PDFs or images, review Gemini's extraction in an editable table, then run the same FairFlow audit in memory.
+            </p>
+            <p className="hidden">
               Skip the CSV. Photograph a physical resume, triage form, or application — Gemini 2.5 Pro extracts the data and runs the bias audit instantly.
             </p>
-            <ResumeImageUploader 
-              onExtracted={(data) => {
-                console.log("Extracted candidate data:", data);
-              }}
-            />
+            <ResumeImageUploader />
           </section>
 
           <div className="relative my-6">
