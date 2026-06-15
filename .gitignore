@@ -16,3 +16,7 @@ unbiased-ai-decision/flutter-app/build/
 *.pyo
 *.pyd
 *.log
+backend/google_service_account.json
+backend/google_oauth_client_secret.json
+backend/google_oauth_token.json
+Google docs API.json
