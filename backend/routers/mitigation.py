@@ -20,6 +20,7 @@ from privacy import compute_report_hash, sanitize_report_aggregates, sanitize_me
 from routers.auth import get_current_user
 from schemas import CertificateResponse, MitigationResponse, SyntheticPatchResponse
 from utils import calculate_fairness_score, compute_group_hire_rates, metric_payload, rebuild_audit_rows
+from gemini_config import get_gemini_model_name, has_configured_gemini_key
 
 
 router = APIRouter()
@@ -101,7 +102,22 @@ def mitigate_audit(
     prejudice_accuracy = _stage_accuracy(y_true, mitigation_result["after_prejudice_remover"].get("predictions", []))
     equalized_accuracy = _stage_accuracy(y_true, mitigation_result["after_equalized_odds"].get("predictions", []))
     fairness_before = calculate_fairness_score(mitigation_result["original"])
-    fairness_after = calculate_fairness_score(mitigation_result["after_equalized_odds"])
+    
+    scores = {
+        "Reweighing": calculate_fairness_score(mitigation_result["after_reweighing"]),
+        "Prejudice Remover": calculate_fairness_score(mitigation_result["after_prejudice_remover"]),
+        "Equalized Odds": calculate_fairness_score(mitigation_result["after_equalized_odds"]),
+    }
+    
+    best_strategy = max(scores, key=scores.get)
+    best_score = scores[best_strategy]
+    
+    if best_score <= fairness_before:
+        recommendation = "Manual review required — no strategy improved all metrics."
+        fairness_after = fairness_before
+    else:
+        recommendation = best_strategy
+        fairness_after = best_score
 
     audit.mitigation_results = {
         "original": mitigation_result["original"],
@@ -124,7 +140,7 @@ def mitigate_audit(
         audit=audit,
         stage="mitigation",
         metadata={
-            "method": "equalized_odds",
+            "method": best_strategy if best_score > fairness_before else "manual_review",
             "accuracy_delta": round(equalized_accuracy - original_accuracy, 4),
             "fairness_lift": round(fairness_after - fairness_before, 2),
         },
@@ -139,6 +155,78 @@ def mitigate_audit(
         if candidate.mitigated_decision is not None and candidate.mitigated_decision != candidate.original_decision
     )
 
+    original_di = float(audit.disparate_impact or 0.0)
+    original_spd = float(audit.stat_parity_diff or 0.0)
+    original_score = float(fairness_before)
+    
+    if recommendation == "Manual review required — no strategy improved all metrics.":
+        mitigated_di = original_di
+        mitigated_spd = original_spd
+        mitigated_score = float(fairness_after)
+    else:
+        best_key = "after_" + best_strategy.lower().replace(" ", "_")
+        best_metrics = mitigation_result[best_key]
+        mitigated_di = float(best_metrics.get("disparate_impact", 0.0))
+        mitigated_spd = float(best_metrics.get("stat_parity_diff", 0.0))
+        mitigated_score = float(fairness_after)
+        
+    domain = str(audit.domain_config.get("domain", "business")) if audit.domain_config else "business"
+
+    import os
+    import google.generativeai as genai
+
+    gemini_action_plan = None
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+
+    if has_configured_gemini_key():
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel(get_gemini_model_name())
+            
+            prompt = f"""You are an AI Compliance Officer reviewing mitigation results for a {domain} decision system.
+
+BEFORE mitigation:
+- Disparate Impact: {original_di:.4f} (threshold: must be > 0.80)
+- Statistical Parity Diff: {original_spd:.4f}
+- Fairness Score: {original_score:.0f}/100
+
+AFTER best mitigation ({best_strategy} strategy):
+- Disparate Impact: {mitigated_di:.4f}
+- Statistical Parity Diff: {mitigated_spd:.4f}  
+- Fairness Score: {mitigated_score:.0f}/100
+
+Write exactly 3 bullet points.
+Each bullet: one sentence, plain English, no jargon, actionable.
+
+Bullet 1: What the mitigation achieved (use actual numbers).
+Bullet 2: Whether the model is now safe to use or still needs work.
+Bullet 3: The single most important next step this week.
+
+Start each bullet with "•"
+Keep total under 80 words.
+No headers. No markdown. Just 3 bullets."""
+
+            response = model.generate_content(prompt)
+            gemini_action_plan = response.text.strip()
+            
+        except Exception as e:
+            print(f"Gemini action plan error: {e}")
+            gemini_action_plan = None
+            
+    if not gemini_action_plan:
+        if float(mitigated_di) >= 0.8:
+            gemini_action_plan = (
+                f"• Mitigation improved Disparate Impact from {float(original_di):.2f} to {float(mitigated_di):.2f}, reaching a fairness score of {float(mitigated_score):.0f}/100.\n"
+                f"• The model is now operating within safe legal parameters and meets the 0.80 fairness threshold.\n"
+                f"• Export the stakeholder-ready PDF report below to document compliance before deployment."
+            )
+        else:
+            gemini_action_plan = (
+                f"• Mitigation adjusted outcomes but Disparate Impact is {float(mitigated_di):.2f}, which is below the 0.80 threshold.\n"
+                f"• The model still carries compliance risks and requires further manual review before deployment.\n"
+                f"• Investigate the protected attributes manually or consider collecting more representative training data."
+            )
+
     return {
         "audit_id": audit.id,
         "original": metric_payload(mitigation_result["original"]),
@@ -148,6 +236,8 @@ def mitigate_audit(
         "fairness_score_before": fairness_score_before,
         "fairness_score_after": fairness_score_after,
         "mitigated_candidates": mitigated_candidates,
+        "recommendation": recommendation,
+        "gemini_action_plan": gemini_action_plan,
     }
 
 

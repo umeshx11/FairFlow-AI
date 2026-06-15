@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-import { LAST_AUDIT_STORAGE_KEY, getAuditTemplates, uploadAudit } from "../api/fairlensApi";
+import { API_BASE_URL, LAST_AUDIT_STORAGE_KEY, TOKEN_STORAGE_KEY, getAuditTemplates, uploadAudit } from "../api/fairlensApi";
 import CSVUploader from "../components/CSVUploader";
 import DomainSelector from "../components/DomainSelector";
 import FairnessReportCard from "../components/FairnessReportCard";
+import GeminiSummaryCard from "../components/GeminiSummaryCard";
 import LocalWasmPrecheckCard from "../components/LocalWasmPrecheckCard";
+import ResumeImageUploader from "../components/ResumeImageUploader";
 import { buildEthosInputFromCsvText } from "../wasm/csvAuditInput";
 import { runEthosPipeline } from "../wasm/ethosEngine";
 import { sanitizeCsvForUpload } from "../wasm/privacyShield";
@@ -40,6 +42,7 @@ function Audit() {
   const [localPrecheck, setLocalPrecheck] = useState(null);
   const [proxyColumn, setProxyColumn] = useState("years_experience");
   const [privacySummary, setPrivacySummary] = useState(null);
+  const [sanitizedFile, setSanitizedFile] = useState(null);
   const [headerValidation, setHeaderValidation] = useState({ found: [], missing: [], allHeaders: [] });
   const [outcomeColumn, setOutcomeColumn] = useState("hired");
   const [protectedAttrs, setProtectedAttrs] = useState("gender,ethnicity,age");
@@ -49,6 +52,42 @@ function Audit() {
   const [outcomeLabel, setOutcomeLabel] = useState("Hired");
   const [outcomePositiveValue, setOutcomePositiveValue] = useState("1");
   const [showAdvancedSchema, setShowAdvancedSchema] = useState(false);
+  const [geminiData, setGeminiData] = useState(null);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+
+  useEffect(() => {
+    const auditId = report?.audit?.id;
+    if (!auditId) return;
+    
+    setGeminiLoading(true);
+    
+    const token = report?.demo_token || localStorage.getItem(TOKEN_STORAGE_KEY);
+    
+    fetch(
+      `${API_BASE_URL}/audit/${auditId}/gemini-summary`,
+      {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      }
+    )
+    .then(r => {
+      if (!r.ok) {
+        throw new Error("Failed to fetch gemini summary");
+      }
+      return r.json();
+    })
+    .then(d => {
+      setGeminiData(d);
+      setGeminiLoading(false);
+    })
+    .catch(err => {
+      console.error("Gemini fetch error:", err);
+      setGeminiLoading(false);
+      // set to a default fallback structure if you want, or just leave it null
+    });
+  }, [report?.audit?.id]);
 
   useEffect(() => {
     const loadTemplates = async () => {
@@ -104,6 +143,36 @@ function Audit() {
       const missing = required.filter((column) => !headers.includes(column));
       const found = required.filter((column) => headers.includes(column));
       setHeaderValidation({ found, missing, allHeaders: headers });
+      
+      if (missing.length === 0) {
+        try {
+          const parsedProtectedAttrs = parseCsvList(protectedAttrs);
+          const parsedFeatureColumns = parseCsvList(featureColumns);
+          const localInput = buildEthosInputFromCsvText(text, {
+            requiredHeaders: selectedRequiredColumns.length ? selectedRequiredColumns : undefined,
+            protectedColumn: parsedProtectedAttrs[0] || "gender",
+            outcomeColumn: normalizeHeader(outcomeColumn) || "hired",
+            outcomePositiveValue,
+            proxyColumn: parsedFeatureColumns[0] || "years_experience"
+          });
+          const localResult = await runEthosPipeline(localInput);
+          setLocalPrecheck(localResult);
+          setProxyColumn(localInput.proxyColumn);
+        } catch (error) {
+          console.error("Local precheck failed:", error);
+          setLocalPrecheck(null);
+        }
+
+        try {
+          const sanitized = await sanitizeCsvForUpload(text);
+          setPrivacySummary(sanitized.stats);
+          setSanitizedFile(new File([sanitized.csvText], file.name, { type: "text/csv" }));
+        } catch (error) {
+          console.error("Privacy sanitize failed:", error);
+          setPrivacySummary(null);
+          setSanitizedFile(file);
+        }
+      }
     } catch (error) {
       setHeaderValidation({ found: [], missing: ["Could not parse headers"], allHeaders: [] });
     }
@@ -116,39 +185,8 @@ function Audit() {
     }
 
     setUploading(true);
-    let csvText = "";
-
-    try {
-      csvText = await file.text();
-      const parsedProtectedAttrs = parseCsvList(protectedAttrs);
-      const parsedFeatureColumns = parseCsvList(featureColumns);
-      const localInput = buildEthosInputFromCsvText(csvText, {
-        requiredHeaders: selectedRequiredColumns.length ? selectedRequiredColumns : undefined,
-        protectedColumn: parsedProtectedAttrs[0] || "gender",
-        outcomeColumn: normalizeHeader(outcomeColumn) || "hired",
-        outcomePositiveValue,
-        proxyColumn: parsedFeatureColumns[0] || "years_experience"
-      });
-      const localResult = await runEthosPipeline(localInput);
-      setLocalPrecheck(localResult);
-      setProxyColumn(localInput.proxyColumn);
-    } catch (error) {
-      setLocalPrecheck(null);
-    }
-
     const formData = new FormData();
-    let privacyStats = null;
-
-    try {
-      const sanitized = await sanitizeCsvForUpload(csvText || (await file.text()));
-      privacyStats = sanitized.stats;
-      setPrivacySummary(privacyStats);
-      const sanitizedFile = new File([sanitized.csvText], file.name, { type: "text/csv" });
-      formData.append("file", sanitizedFile);
-    } catch (error) {
-      setPrivacySummary(null);
-      formData.append("file", file);
-    }
+    formData.append("file", sanitizedFile || file);
 
     const parsedProtectedAttrs = parseCsvList(protectedAttrs);
     const parsedFeatureColumns = parseCsvList(featureColumns);
@@ -189,8 +227,8 @@ function Audit() {
         `Upload completed. ${response?.summary?.total_candidates ?? 0} ${
           selectedTemplate.subject_label || "records"
         } analyzed${
-          privacyStats && privacyStats.fieldsHashed > 0
-            ? `, ${privacyStats.fieldsHashed} PII fields hashed locally`
+          privacySummary && privacySummary.fieldsHashed > 0
+            ? `, ${privacySummary.fieldsHashed} PII fields hashed locally`
             : ""
         }.`
       );
@@ -272,6 +310,34 @@ function Audit() {
 
       {step === 1 && (
         <>
+          <section className="section-card border border-amber-200 bg-amber-50/30">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl">📸</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                  Upload Resumes
+                </p>
+                <h3 className="text-xl font-bold text-slate-900">
+                  Extract resumes and review candidates
+                </h3>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-5">
+              Skip the CSV. Upload up to 50 resume PDFs or images, review Gemini's extraction in an editable table, then run the same FairFlow audit in memory.
+            </p>
+            <ResumeImageUploader />
+          </section>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200"/>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-white px-4 text-sm text-slate-500 font-medium">
+                or upload a CSV dataset
+              </span>
+            </div>
+          </div>
           <DomainSelector templates={templates} selectedDomain={selectedTemplate?.domain} onSelect={setDomain} />
           <div className="flex justify-end">
             <button
@@ -473,6 +539,120 @@ function Audit() {
             </section>
           )}
           <FairnessReportCard metrics={report.metrics} />
+          <div className="rounded-xl border border-slate-200 bg-white p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">✨</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                  AI Fairness Verdict
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">
+                  Gemini Analysis
+                  {geminiData?.source && geminiData.source !== "fallback" && (
+                    <span className="ml-2 text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                      Powered by Gemini
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <span className={`ml-auto text-xs font-semibold px-3 py-1 rounded-full border ${
+                  geminiData?.risk_level === "high"
+                    ? "bg-red-100 text-red-700 border-red-200"
+                    : geminiData?.risk_level === "low"
+                    ? "bg-green-100 text-green-700 border-green-200"
+                    : "bg-amber-100 text-amber-700 border-amber-200"
+                }`}>
+                {geminiData?.risk_level === "high" 
+                  ? "High Risk" 
+                  : geminiData?.risk_level === "low"
+                  ? "Low Risk"
+                  : "Medium Risk"}
+              </span>
+            </div>
+
+            {geminiLoading ? (
+              <div className="space-y-2">
+                <div className="h-3 bg-slate-100 rounded animate-pulse w-full"/>
+                <div className="h-3 bg-slate-100 rounded animate-pulse w-4/5"/>
+                <div className="h-3 bg-slate-100 rounded animate-pulse w-full"/>
+                <p className="text-slate-400 text-xs mt-2">
+                  Generating Gemini analysis...
+                </p>
+              </div>
+            ) : geminiData ? (
+              <>
+                <div className="text-slate-700 text-sm leading-relaxed mb-4 space-y-3">
+                  {geminiData.summary
+                    .split('\n\n')
+                    .filter(p => p.trim())
+                    .map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))
+                  }
+                </div>
+                {geminiData.bottom_line && (
+                  <div className="bg-slate-900 rounded-lg p-4 mb-4">
+                    <p className="text-white font-semibold text-sm">
+                      {geminiData.bottom_line}
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    const text = 
+                      `${geminiData.summary}\n\n` +
+                      `${geminiData.bottom_line}`;
+                    navigator.clipboard.writeText(text);
+                  }}
+                  className="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 transition-colors"
+                >
+                  Copy for stakeholders
+                </button>
+              </>
+            ) : (
+              <p className="text-slate-500 text-sm">
+                Analysis unavailable. Check backend connection.
+              </p>
+            )}
+          </div>
+
+          {report?.summary?.india_scan && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xl">🇮🇳</span>
+                <div>
+                  <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                    India Context Scan
+                  </p>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Caste, Religion, & Regional Bias
+                  </h3>
+                </div>
+                <span className="ml-auto text-sm font-bold bg-slate-100 text-slate-800 px-3 py-1 rounded-full border border-slate-200">
+                  Score: {report.summary.india_scan.india_fairness_score}/100
+                </span>
+              </div>
+              
+              {report.summary.india_scan.high_risk_dimensions?.length > 0 ? (
+                <div className="mb-4 space-y-2">
+                  <p className="text-sm font-medium text-red-600">High Risk Dimensions Found:</p>
+                  <ul className="list-disc list-inside text-sm text-slate-700">
+                    {report.summary.india_scan.high_risk_dimensions.map(dim => (
+                      <li key={dim} className="capitalize">{dim.replace('_', ' ')}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="mb-4 text-sm text-emerald-600 font-medium">No severe India-specific biases detected.</p>
+              )}
+              
+              {report.summary.india_scan.methodology_note && (
+                <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-xs italic text-slate-500">
+                  {report.summary.india_scan.methodology_note}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
             <div className="section-card">
