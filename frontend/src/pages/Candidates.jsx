@@ -33,6 +33,7 @@ function Candidates() {
   const [loading, setLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [panelLoading, setPanelLoading] = useState(false);
+  const [audit, setAudit] = useState(null);
   const [domainConfig, setDomainConfig] = useState({
     subject_label: "Candidate",
     outcome_label: "Hired",
@@ -51,9 +52,10 @@ function Candidates() {
   useEffect(() => {
     const fetchAudit = async () => {
       try {
-        const audit = await getAudit(auditId);
+        const auditData = await getAudit(auditId);
+        setAudit(auditData);
         setDomainConfig(
-          audit?.domain_config || {
+          auditData?.domain_config || {
             subject_label: "Candidate",
             outcome_label: "Hired",
             protected_attributes: ["gender", "ethnicity", "age"],
@@ -62,6 +64,7 @@ function Candidates() {
           }
         );
       } catch (error) {
+        setAudit(null);
         setDomainConfig({
           subject_label: "Candidate",
           outcome_label: "Hired",
@@ -97,9 +100,9 @@ function Candidates() {
     fetchCandidates();
   }, [auditId, deferredSearch, filter, page]);
 
-  const handleCandidateSelect = async (candidate) => {
+  const handleCandidateSelect = async (candidate, displayIndex) => {
     startTransition(() => {
-      setSelectedCandidate(candidate);
+      setSelectedCandidate({ ...candidate, displayIndex });
     });
 
     const needsShap = !candidate.shap_values?.waterfall_data;
@@ -117,6 +120,7 @@ function Candidates() {
       startTransition(() => {
         setSelectedCandidate({
           ...candidate,
+          displayIndex,
           shap_values: shapData,
           counterfactual_result: counterfactualData
         });
@@ -148,6 +152,12 @@ function Candidates() {
     }
     return "N/A";
   };
+
+  const femaleCount = candidates.filter(c => String(getValue(c, primaryProtected)).toLowerCase() === 'female').length;
+  const maleCount = candidates.filter(c => String(getValue(c, primaryProtected)).toLowerCase() === 'male').length;
+  const totalGender = femaleCount + maleCount || 1;
+  const femalePct = Math.round((femaleCount / totalGender) * 100);
+  const malePct = Math.round((maleCount / totalGender) * 100);
 
   return (
     <div className="space-y-6">
@@ -230,7 +240,16 @@ function Candidates() {
           </div>
         ) : (
           <>
-            <div className="mt-6 overflow-x-auto">
+            <div className="mt-6 flex flex-col gap-4 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between border border-slate-200">
+              <div className="text-sm font-medium text-slate-700">
+                Showing {total} {subjectLabel.toLowerCase()}s • {audit?.flagged_candidates || 0} flagged • Filter: {filter === "all" ? "All" : filter === "flagged" ? "Flagged" : "Clean"}
+              </div>
+              <div className="text-sm font-medium text-slate-700">
+                Gender split: {femalePct}% Female • {malePct}% Male
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
@@ -243,15 +262,34 @@ function Candidates() {
                   </tr>
                 </thead>
                 <tbody>
-                  {candidates.map((candidate) => (
+                  {candidates.map((candidate, index) => {
+                    const displayIndex = ((page - 1) * 20) + index + 1;
+                    return (
                     <tr
                       key={candidate.id}
-                      onClick={() => handleCandidateSelect(candidate)}
-                      className="cursor-pointer border-b border-slate-100 transition hover:bg-amber/5"
+                      onClick={() => handleCandidateSelect(candidate, displayIndex)}
+                      className={`cursor-pointer border-b border-slate-100 transition hover:bg-amber/5 ${
+                        candidate.bias_flagged ? "border-l-4 border-l-amber-400" : "border-l-4 border-l-transparent"
+                      }`}
                     >
-                      <td className="px-3 py-4 font-medium text-slate-900">{getValue(candidate, "name")}</td>
-                      <td className="px-3 py-4 text-slate-600">{String(getValue(candidate, primaryProtected))}</td>
-                      <td className="px-3 py-4 text-slate-600">{String(getValue(candidate, secondaryProtected))}</td>
+                      <td className="px-3 py-4 font-medium text-slate-900">
+                        <div className="group relative inline-block">
+                          <span>Candidate #{displayIndex}</span>
+                          <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-800 px-2 py-1 text-xs text-white group-hover:block">
+                            Hash: {getValue(candidate, "name")}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-4">
+                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                          {String(getValue(candidate, primaryProtected))}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4">
+                        <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
+                          {String(getValue(candidate, secondaryProtected))}
+                        </span>
+                      </td>
                       <td className="px-3 py-4 text-slate-600">{String(getValue(candidate, primaryFeature))}</td>
                       <td className="px-3 py-4">
                         <span
@@ -278,7 +316,7 @@ function Candidates() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
@@ -344,7 +382,7 @@ function Candidates() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <Dialog.Title className="text-2xl font-bold text-slate-900">
-                              {selectedCandidate?.name}
+                              Candidate #{selectedCandidate?.displayIndex}
                             </Dialog.Title>
                             <p className="mt-2 text-sm text-slate-500">
                               {selectedCandidate?.gender} • {selectedCandidate?.ethnicity} •{" "}
@@ -400,9 +438,15 @@ function Candidates() {
                           </div>
                         </div>
 
-                        <SHAPWaterfallChart
-                          waterfallData={selectedCandidate?.shap_values?.waterfall_data || []}
-                        />
+                        {selectedCandidate?.shap_values?.waterfall_data?.length > 0 ? (
+                          <SHAPWaterfallChart
+                            waterfallData={selectedCandidate.shap_values.waterfall_data}
+                          />
+                        ) : (
+                          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center">
+                            <p className="text-sm font-medium text-slate-500">Explainability snapshot not available for this record</p>
+                          </div>
+                        )}
                         <CounterfactualPanel result={selectedCandidate?.counterfactual_result} />
                       </div>
                     </div>

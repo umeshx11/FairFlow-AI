@@ -168,7 +168,7 @@ function CSVUploader({
               onClick={() => beginUpload(selectedFile)}
               className="rounded-2xl bg-navy px-4 py-2 text-sm font-semibold text-white transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {uploading ? "Uploading..." : "Start Upload"}
+              {uploading ? "Uploading..." : "Proceed to Upload"}
             </button>
           </div>
         </div>

@@ -10,11 +10,11 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import { ArrowUpRight, FolderSearch, Gauge, ShieldAlert, ShieldCheck, Users } from "lucide-react";
+import { ArrowUpRight, FolderSearch, Gauge, ShieldAlert, ShieldCheck, Trash2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
-import { LAST_AUDIT_STORAGE_KEY, listAudits } from "../api/fairlensApi";
+import { LAST_AUDIT_STORAGE_KEY, deleteAudit, listAudits } from "../api/fairlensApi";
 
 const ethnicityColors = ["#2563eb", "#ec4899", "#16a34a", "#f97316"];
 
@@ -85,6 +85,7 @@ function Dashboard() {
   const [audits, setAudits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   const fetchAudits = async () => {
     setLoading(true);
@@ -106,6 +107,19 @@ function Dashboard() {
   useEffect(() => {
     fetchAudits();
   }, []);
+
+  const handleDelete = async (auditId, datasetName) => {
+    if (!window.confirm(`Permanently delete "${datasetName}" and all its candidate data? This cannot be undone.`)) return;
+    setDeletingId(auditId);
+    try {
+      await deleteAudit(auditId);
+      setAudits((prev) => prev.filter((a) => a.id !== auditId));
+    } catch {
+      // toast already shown by performRequest
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const latestAudit = audits[0];
   const stats = useMemo(() => {
@@ -239,6 +253,9 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="text-center text-[13px] text-amber-600/90 font-medium">
+        83% of companies use AI in decisions. Fewer than 12% audit for bias. FairFlow fixes that.
+      </div>
       {loadError && (
         <div className="section-card border border-amber-200 bg-amber-50/70">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -312,6 +329,100 @@ function Dashboard() {
           trend={`${stats.mitigatedAudits}/${audits.length} with action`}
           accent="bg-emerald-50 text-emerald-700"
         />
+      </div>
+
+      <div className="section-card bg-[linear-gradient(135deg,#0f172a_0%,#1e293b_55%,#334155_100%)] text-white text-center p-8">
+        <h3 className="text-2xl font-bold text-white">INDICASA Bias Dimensions</h3>
+        <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-amber-light">India-first protected attribute coverage</p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-purple-500/20 px-4 py-2 text-sm font-medium text-purple-200 ring-1 ring-inset ring-purple-500/30">
+            <span className="h-2 w-2 rounded-full bg-purple-400"></span>
+            Gender
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-orange-500/20 px-4 py-2 text-sm font-medium text-orange-200 ring-1 ring-inset ring-orange-500/30">
+            <span className="h-2 w-2 rounded-full bg-orange-400"></span>
+            Caste
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/20 px-4 py-2 text-sm font-medium text-blue-200 ring-1 ring-inset ring-blue-500/30">
+            <span className="h-2 w-2 rounded-full bg-blue-400"></span>
+            Religion
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-4 py-2 text-sm font-medium text-emerald-200 ring-1 ring-inset ring-emerald-500/30">
+            <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+            Ethnicity
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-rose-500/20 px-4 py-2 text-sm font-medium text-rose-200 ring-1 ring-inset ring-rose-500/30">
+            <span className="h-2 w-2 rounded-full bg-rose-400"></span>
+            Disability
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-yellow-500/20 px-4 py-2 text-sm font-medium text-yellow-200 ring-1 ring-inset ring-yellow-500/30">
+            <span className="h-2 w-2 rounded-full bg-yellow-400"></span>
+            Region
+          </span>
+        </div>
+        <p className="mt-6 text-sm text-slate-300">
+          FairFlow detects proxy bias across all 6 dimensions — the only auditing platform built for India's social context.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-orange-200 bg-orange-50/30 p-6">
+        <p className="text-xs font-semibold text-orange-600 tracking-widest uppercase mb-2">
+          India-First Compliance
+        </p>
+        <h3 className="text-xl font-bold text-slate-900 mb-3">
+          Built for India's Social Reality
+        </h3>
+        
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              Protected by
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              Article 15 & 16
+            </p>
+            <p className="text-xs text-slate-500">
+              Constitution of India
+            </p>
+          </div>
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              SC/ST Protection
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              Atrocities Act 1989
+            </p>
+            <p className="text-xs text-slate-500">
+              Employment provisions
+            </p>
+          </div>
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              Lending fairness
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              RBI Fair Practice Code
+            </p>
+            <p className="text-xs text-slate-500">
+              Equal credit access
+            </p>
+          </div>
+          <div className="rounded-lg bg-white border border-orange-100 p-3">
+            <p className="text-xs text-slate-500">
+              Healthcare equity
+            </p>
+            <p className="text-sm font-bold text-slate-900">
+              NHP 2017
+            </p>
+            <p className="text-xs text-slate-500">
+              Universal health coverage
+            </p>
+          </div>
+        </div>
+        
+        <p className="text-sm text-slate-600">
+          FairFlow is the only bias auditing platform that detects caste, religion, and regional discrimination — the three forms of bias most common in Indian workplaces, banks, and hospitals.
+        </p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -452,7 +563,7 @@ function Dashboard() {
                       </span>
                     </td>
                     <td className="px-3 py-4">
-                      <div className="flex flex-wrap gap-2">
+                       <div className="flex flex-wrap gap-2">
                         <Link
                           to={`/candidates/${audit.id}`}
                           className="rounded-full border border-slate-200 px-3 py-1 font-medium text-slate-700 transition hover:border-amber hover:text-amber-dark"
@@ -465,6 +576,24 @@ function Dashboard() {
                         >
                           Mitigate
                         </Link>
+                        <button
+                          onClick={() => handleDelete(audit.id, audit.dataset_name)}
+                          disabled={deletingId === audit.id}
+                          title="Delete audit (GDPR right to erasure)"
+                          className="rounded-full border border-rose-200 px-3 py-1 font-medium text-rose-600 transition hover:border-rose-400 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          {deletingId === audit.id ? (
+                            <span className="flex items-center gap-1">
+                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-rose-400 border-t-transparent" />
+                              Deleting...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Trash2 className="h-3 w-3" />
+                              Delete
+                            </span>
+                          )}
+                        </button>
                       </div>
                     </td>
                   </tr>

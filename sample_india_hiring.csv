@@ -1,0 +1,301 @@
+name,gender,age,caste_group,religion,state,years_experience,education_tier,hired,ethnicity,education_level
+Joseph Masih,Male,25,N/A,Christian,Tamil Nadu,3.4,Tier 2,0,N/A,Diploma
+Ramesh Valmiki,Male,26,SC,Hindu,Delhi,3.0,Tier 2,0,SC,PhD
+Sunita Tiwari,Female,22,Upper Caste,Hindu,Karnataka,2.7,Tier 2,0,Upper Caste,Master's
+Sarah DSouza,Female,44,N/A,Christian,Tamil Nadu,5.6,Tier 1,1,N/A,Bachelor's
+Ramesh Yadav,Male,34,OBC,Hindu,Karnataka,6.0,Tier 3,1,OBC,Master's
+Suresh Chamar,Male,32,SC,Hindu,Maharashtra,5.4,Tier 3,0,SC,Bachelor's
+Fatima Ansari,Female,41,N/A,Muslim,Maharashtra,3.0,Tier 2,1,N/A,Bachelor's
+Rajesh Sharma,Male,31,Upper Caste,Hindu,Karnataka,7.6,Tier 3,1,Upper Caste,PhD
+Geeta Kurmi,Female,40,OBC,Hindu,Tamil Nadu,3.4,Tier 2,1,OBC,PhD
+Suresh Iyer,Male,24,Upper Caste,Hindu,Delhi,6.0,Tier 2,1,Upper Caste,Diploma
+Sarah DSouza,Female,28,N/A,Christian,Maharashtra,8.2,Tier 2,0,N/A,Bachelor's
+Rahul Sheikh,Male,34,N/A,Muslim,Uttar Pradesh,1.6,Tier 2,0,N/A,Bachelor's
+Amit Verma,Male,41,Upper Caste,Hindu,Maharashtra,1.7,Tier 3,0,Upper Caste,Master's
+Rajesh Sharma,Male,22,Upper Caste,Hindu,Tamil Nadu,3.8,Tier 2,1,Upper Caste,Bachelor's
+Suresh Iyer,Male,31,Upper Caste,Hindu,Uttar Pradesh,7.6,Tier 2,0,Upper Caste,Master's
+Kavita Joshi,Female,44,Upper Caste,Hindu,Tamil Nadu,3.1,Tier 3,1,Upper Caste,PhD
+Amit Verma,Male,37,Upper Caste,Hindu,Uttar Pradesh,8.4,Tier 2,1,Upper Caste,Bachelor's
+Aisha Siddiqui,Female,35,N/A,Muslim,Delhi,4.7,Tier 3,0,N/A,Master's
+Sita Lodhi,Female,24,OBC,Hindu,Karnataka,5.0,Tier 3,0,OBC,Bachelor's
+Sarah DSouza,Female,24,N/A,Christian,Uttar Pradesh,2.4,Tier 3,0,N/A,Diploma
+Sunita Kushwaha,Female,24,OBC,Hindu,Karnataka,6.4,Tier 3,1,OBC,PhD
+Suresh Iyer,Male,42,Upper Caste,Hindu,Delhi,3.5,Tier 2,1,Upper Caste,Diploma
+Ramesh Yadav,Male,29,OBC,Hindu,Karnataka,5.0,Tier 2,1,OBC,PhD
+Fatima Ansari,Female,42,N/A,Muslim,Delhi,10.7,Tier 2,0,N/A,Master's
+Suresh Iyer,Male,37,Upper Caste,Hindu,Uttar Pradesh,3.4,Tier 3,1,Upper Caste,PhD
+Abdul Qureshi,Male,27,N/A,Muslim,Karnataka,0.6,Tier 1,0,N/A,Diploma
+Sita Lodhi,Female,41,OBC,Hindu,Delhi,8.5,Tier 2,0,OBC,Bachelor's
+Geeta Kurmi,Female,40,OBC,Hindu,Karnataka,8.7,Tier 1,1,OBC,PhD
+Joseph Masih,Male,33,N/A,Christian,Delhi,0.0,Tier 1,1,N/A,Bachelor's
+Ramesh Yadav,Male,37,OBC,Hindu,Tamil Nadu,5.7,Tier 2,1,OBC,Master's
+Aisha Siddiqui,Female,38,N/A,Muslim,Delhi,7.9,Tier 1,1,N/A,Diploma
+Mohammad Khan,Male,29,N/A,Muslim,Maharashtra,5.2,Tier 1,0,N/A,Bachelor's
+Sunita Tiwari,Female,22,Upper Caste,Hindu,Delhi,8.6,Tier 2,0,Upper Caste,Master's
+Amit Verma,Male,35,Upper Caste,Hindu,Karnataka,4.7,Tier 3,1,Upper Caste,PhD
+Priya Mishra,Female,33,Upper Caste,Hindu,Karnataka,7.9,Tier 1,1,Upper Caste,Master's
+Meera Pillai,Female,29,Upper Caste,Hindu,Delhi,3.8,Tier 2,1,Upper Caste,Diploma
+Meera Pillai,Female,27,Upper Caste,Hindu,Uttar Pradesh,7.7,Tier 2,0,Upper Caste,Bachelor's
+Joseph Masih,Male,31,N/A,Christian,Delhi,7.6,Tier 3,1,N/A,Diploma
+Mohan Pasi,Male,40,SC,Hindu,Uttar Pradesh,3.6,Tier 2,0,SC,Diploma
+Sunita Tiwari,Female,22,Upper Caste,Hindu,Maharashtra,3.0,Tier 2,0,Upper Caste,Diploma
+Sita Lodhi,Female,33,OBC,Hindu,Tamil Nadu,1.2,Tier 2,1,OBC,Bachelor's
+Mohan Prajapati,Male,27,OBC,Hindu,Delhi,4.7,Tier 2,1,OBC,Diploma
+Rahul Pandey,Male,22,Upper Caste,Hindu,Tamil Nadu,5.9,Tier 1,0,Upper Caste,Bachelor's
+Fatima Ansari,Female,38,N/A,Muslim,Karnataka,2.5,Tier 2,0,N/A,Bachelor's
+Rajesh Sharma,Male,34,Upper Caste,Hindu,Tamil Nadu,7.7,Tier 1,0,Upper Caste,Bachelor's
+Anita Dhobi,Female,28,SC,Hindu,Tamil Nadu,5.2,Tier 2,0,SC,Master's
+Sunita Tiwari,Female,31,Upper Caste,Hindu,Delhi,5.5,Tier 1,0,Upper Caste,Master's
+Arun Maurya,Male,39,OBC,Hindu,Maharashtra,5.7,Tier 1,1,OBC,Bachelor's
+Suresh Chamar,Male,35,SC,Hindu,Delhi,5.9,Tier 2,0,SC,Diploma
+Anita Kulkarni,Female,41,Upper Caste,Hindu,Karnataka,6.9,Tier 3,1,Upper Caste,Diploma
+Suresh Chamar,Male,35,SC,Hindu,Karnataka,0.0,Tier 2,1,SC,Bachelor's
+Mary Thomas,Female,39,N/A,Christian,Uttar Pradesh,4.5,Tier 3,1,N/A,Bachelor's
+Rahul Pandey,Male,28,Upper Caste,Hindu,Karnataka,6.3,Tier 2,1,Upper Caste,PhD
+Ramesh Yadav,Male,39,OBC,Hindu,Delhi,1.6,Tier 3,0,OBC,Master's
+Priya Mishra,Female,41,Upper Caste,Hindu,Delhi,5.4,Tier 2,1,Upper Caste,PhD
+Joseph Masih,Male,32,N/A,Christian,Delhi,9.1,Tier 1,0,N/A,PhD
+Ramesh Valmiki,Male,36,SC,Hindu,Maharashtra,10.4,Tier 3,0,SC,Master's
+Geeta Jatav,Female,32,SC,Hindu,Delhi,8.0,Tier 3,0,SC,PhD
+Sunita Kushwaha,Female,40,OBC,Hindu,Delhi,5.8,Tier 2,1,OBC,Master's
+Fatima Ansari,Female,31,N/A,Muslim,Delhi,4.4,Tier 3,1,N/A,Diploma
+Mohammad Khan,Male,39,N/A,Muslim,Uttar Pradesh,1.9,Tier 2,0,N/A,Diploma
+Priya Mishra,Female,38,Upper Caste,Hindu,Delhi,8.8,Tier 2,1,Upper Caste,PhD
+Zainab Malik,Female,32,N/A,Muslim,Maharashtra,5.3,Tier 3,0,N/A,Diploma
+Mohammad Khan,Male,44,N/A,Muslim,Tamil Nadu,7.6,Tier 2,0,N/A,Master's
+Rahul Pandey,Male,24,Upper Caste,Hindu,Tamil Nadu,3.5,Tier 2,1,Upper Caste,PhD
+Priya Mishra,Female,26,Upper Caste,Hindu,Karnataka,11.3,Tier 3,0,Upper Caste,Bachelor's
+Mohammad Khan,Male,35,N/A,Muslim,Maharashtra,1.7,Tier 2,0,N/A,Master's
+Suresh Chamar,Male,36,SC,Hindu,Maharashtra,0.0,Tier 2,0,SC,Bachelor's
+Vikram Singh,Male,29,Upper Caste,Hindu,Tamil Nadu,5.4,Tier 3,1,Upper Caste,PhD
+Sunita Kushwaha,Female,38,OBC,Hindu,Tamil Nadu,3.5,Tier 2,0,OBC,Diploma
+Sunita Tiwari,Female,35,Upper Caste,Hindu,Maharashtra,5.6,Tier 1,1,Upper Caste,Master's
+Suresh Chamar,Male,23,SC,Hindu,Karnataka,3.3,Tier 2,0,SC,Diploma
+Sunita Kushwaha,Female,22,OBC,Hindu,Tamil Nadu,0.8,Tier 2,1,OBC,Diploma
+Geeta Kurmi,Female,34,OBC,Hindu,Uttar Pradesh,3.8,Tier 3,0,OBC,PhD
+Sunita Kushwaha,Female,42,OBC,Hindu,Karnataka,11.3,Tier 2,0,OBC,PhD
+Aisha Siddiqui,Female,44,N/A,Muslim,Karnataka,2.8,Tier 3,0,N/A,Diploma
+Vikram Singh,Male,28,Upper Caste,Hindu,Maharashtra,5.3,Tier 2,1,Upper Caste,Bachelor's
+Vikram Singh,Male,40,Upper Caste,Hindu,Karnataka,4.3,Tier 3,1,Upper Caste,Master's
+Kavita Joshi,Female,26,Upper Caste,Hindu,Uttar Pradesh,3.7,Tier 3,1,Upper Caste,Master's
+Anita Dhobi,Female,24,SC,Hindu,Uttar Pradesh,3.5,Tier 1,0,SC,Bachelor's
+Kavita Joshi,Female,33,Upper Caste,Hindu,Uttar Pradesh,6.8,Tier 1,1,Upper Caste,Bachelor's
+Ramesh Valmiki,Male,35,SC,Hindu,Uttar Pradesh,2.5,Tier 3,0,SC,Diploma
+Aisha Siddiqui,Female,33,N/A,Muslim,Maharashtra,4.8,Tier 2,0,N/A,Bachelor's
+Arun Maurya,Male,22,OBC,Hindu,Delhi,3.1,Tier 2,0,OBC,Diploma
+Ramesh Yadav,Male,44,OBC,Hindu,Tamil Nadu,10.4,Tier 3,1,OBC,Master's
+Sunita Kushwaha,Female,36,OBC,Hindu,Tamil Nadu,4.7,Tier 1,1,OBC,Master's
+Sunita Kushwaha,Female,36,OBC,Hindu,Delhi,3.0,Tier 1,0,OBC,Master's
+Mohan Pasi,Male,27,SC,Hindu,Maharashtra,0.0,Tier 2,0,SC,PhD
+Arun Maurya,Male,27,OBC,Hindu,Tamil Nadu,1.0,Tier 2,1,OBC,PhD
+Suresh Iyer,Male,44,Upper Caste,Hindu,Tamil Nadu,7.7,Tier 1,1,Upper Caste,Diploma
+Rahul Sheikh,Male,33,N/A,Muslim,Delhi,8.4,Tier 2,0,N/A,Bachelor's
+Kavita Joshi,Female,43,Upper Caste,Hindu,Maharashtra,5.8,Tier 2,0,Upper Caste,PhD
+Mohammad Khan,Male,26,N/A,Muslim,Karnataka,10.8,Tier 1,0,N/A,Master's
+Anita Dhobi,Female,30,SC,Hindu,Tamil Nadu,6.2,Tier 2,0,SC,Bachelor's
+Rajesh Sharma,Male,41,Upper Caste,Hindu,Delhi,1.4,Tier 2,1,Upper Caste,PhD
+Suresh Iyer,Male,40,Upper Caste,Hindu,Tamil Nadu,1.7,Tier 2,0,Upper Caste,Bachelor's
+Sunita Tiwari,Female,40,Upper Caste,Hindu,Karnataka,2.1,Tier 1,0,Upper Caste,Master's
+Ramesh Valmiki,Male,29,SC,Hindu,Uttar Pradesh,8.6,Tier 2,1,SC,Bachelor's
+Mohan Prajapati,Male,33,OBC,Hindu,Uttar Pradesh,8.8,Tier 3,1,OBC,Master's
+Joseph Masih,Male,26,N/A,Christian,Karnataka,4.6,Tier 3,0,N/A,Diploma
+Priya Mishra,Female,28,Upper Caste,Hindu,Tamil Nadu,3.6,Tier 3,1,Upper Caste,Master's
+Mohan Prajapati,Male,42,OBC,Hindu,Delhi,2.9,Tier 2,1,OBC,PhD
+Anita Kulkarni,Female,25,Upper Caste,Hindu,Delhi,7.1,Tier 3,1,Upper Caste,Bachelor's
+Arun Maurya,Male,38,OBC,Hindu,Tamil Nadu,2.4,Tier 2,1,OBC,Bachelor's
+Kavita Joshi,Female,24,Upper Caste,Hindu,Karnataka,1.1,Tier 2,1,Upper Caste,PhD
+Sunita Kushwaha,Female,39,OBC,Hindu,Tamil Nadu,3.5,Tier 2,1,OBC,Bachelor's
+Rahul Pandey,Male,24,Upper Caste,Hindu,Uttar Pradesh,2.9,Tier 3,0,Upper Caste,PhD
+Rajesh Sharma,Male,30,Upper Caste,Hindu,Karnataka,6.9,Tier 2,0,Upper Caste,Master's
+Ramesh Valmiki,Male,39,SC,Hindu,Karnataka,5.9,Tier 3,0,SC,Master's
+Sunita Tiwari,Female,41,Upper Caste,Hindu,Karnataka,6.7,Tier 2,1,Upper Caste,Diploma
+Anita Kulkarni,Female,41,Upper Caste,Hindu,Uttar Pradesh,4.3,Tier 2,1,Upper Caste,Diploma
+Anita Dhobi,Female,33,SC,Hindu,Tamil Nadu,6.6,Tier 1,0,SC,PhD
+Joseph Masih,Male,33,N/A,Christian,Tamil Nadu,5.6,Tier 3,1,N/A,Diploma
+Mohan Prajapati,Male,35,OBC,Hindu,Karnataka,2.8,Tier 3,1,OBC,Bachelor's
+Kavita Joshi,Female,29,Upper Caste,Hindu,Uttar Pradesh,3.9,Tier 2,1,Upper Caste,Diploma
+Mary Thomas,Female,30,N/A,Christian,Tamil Nadu,6.4,Tier 2,1,N/A,Master's
+Mohan Pasi,Male,22,SC,Hindu,Delhi,8.8,Tier 2,0,SC,Master's
+Aisha Siddiqui,Female,27,N/A,Muslim,Tamil Nadu,8.3,Tier 1,0,N/A,Bachelor's
+Suresh Iyer,Male,33,Upper Caste,Hindu,Uttar Pradesh,6.1,Tier 3,0,Upper Caste,Master's
+Geeta Kurmi,Female,44,OBC,Hindu,Maharashtra,6.8,Tier 2,0,OBC,Bachelor's
+Vikram Singh,Male,23,Upper Caste,Hindu,Tamil Nadu,2.5,Tier 2,1,Upper Caste,Diploma
+Mohammad Khan,Male,38,N/A,Muslim,Karnataka,6.2,Tier 3,0,N/A,Diploma
+Suresh Chamar,Male,34,SC,Hindu,Tamil Nadu,3.7,Tier 1,0,SC,PhD
+Arun Maurya,Male,24,OBC,Hindu,Tamil Nadu,7.8,Tier 2,1,OBC,Bachelor's
+Ramesh Valmiki,Male,36,SC,Hindu,Karnataka,5.0,Tier 3,1,SC,Diploma
+Ramesh Valmiki,Male,34,SC,Hindu,Uttar Pradesh,7.2,Tier 2,0,SC,Diploma
+Joseph Masih,Male,43,N/A,Christian,Maharashtra,3.4,Tier 3,0,N/A,Diploma
+Sunita Kushwaha,Female,29,OBC,Hindu,Delhi,8.4,Tier 1,1,OBC,Bachelor's
+Fatima Ansari,Female,27,N/A,Muslim,Delhi,6.3,Tier 3,0,N/A,PhD
+Suresh Iyer,Male,25,Upper Caste,Hindu,Maharashtra,6.2,Tier 3,0,Upper Caste,Master's
+Geeta Kurmi,Female,44,OBC,Hindu,Uttar Pradesh,4.0,Tier 3,0,OBC,PhD
+Geeta Jatav,Female,35,SC,Hindu,Tamil Nadu,3.0,Tier 2,0,SC,Diploma
+Rajesh Sharma,Male,26,Upper Caste,Hindu,Karnataka,1.6,Tier 2,0,Upper Caste,Bachelor's
+Abdul Qureshi,Male,39,N/A,Muslim,Uttar Pradesh,7.6,Tier 2,1,N/A,Bachelor's
+Ramesh Valmiki,Male,42,SC,Hindu,Delhi,2.7,Tier 2,0,SC,PhD
+Mohan Prajapati,Male,37,OBC,Hindu,Delhi,2.7,Tier 1,1,OBC,PhD
+Joseph Masih,Male,25,N/A,Christian,Delhi,7.9,Tier 2,0,N/A,Bachelor's
+Abdul Qureshi,Male,35,N/A,Muslim,Delhi,4.1,Tier 2,0,N/A,Master's
+Suresh Iyer,Male,22,Upper Caste,Hindu,Karnataka,4.9,Tier 2,1,Upper Caste,Bachelor's
+Arun Maurya,Male,40,OBC,Hindu,Karnataka,4.8,Tier 2,0,OBC,Bachelor's
+Arun Maurya,Male,42,OBC,Hindu,Karnataka,5.1,Tier 2,1,OBC,Bachelor's
+Kavita Joshi,Female,39,Upper Caste,Hindu,Uttar Pradesh,10.9,Tier 3,1,Upper Caste,PhD
+Kavita Joshi,Female,34,Upper Caste,Hindu,Karnataka,1.3,Tier 1,1,Upper Caste,Diploma
+Ramesh Yadav,Male,23,OBC,Hindu,Karnataka,7.0,Tier 2,0,OBC,PhD
+Sarah DSouza,Female,34,N/A,Christian,Karnataka,5.0,Tier 2,1,N/A,PhD
+Mary Thomas,Female,30,N/A,Christian,Maharashtra,4.1,Tier 3,1,N/A,Master's
+Anita Dhobi,Female,23,SC,Hindu,Uttar Pradesh,10.1,Tier 2,0,SC,Diploma
+Mohammad Khan,Male,40,N/A,Muslim,Uttar Pradesh,6.9,Tier 2,0,N/A,PhD
+Mohan Prajapati,Male,42,OBC,Hindu,Tamil Nadu,3.3,Tier 2,1,OBC,Bachelor's
+Mohan Prajapati,Male,28,OBC,Hindu,Uttar Pradesh,6.3,Tier 3,0,OBC,Master's
+Geeta Kurmi,Female,34,OBC,Hindu,Uttar Pradesh,5.0,Tier 1,1,OBC,Bachelor's
+Geeta Jatav,Female,24,SC,Hindu,Delhi,4.3,Tier 2,0,SC,Master's
+Ramesh Yadav,Male,26,OBC,Hindu,Tamil Nadu,3.6,Tier 2,1,OBC,Diploma
+Ramesh Yadav,Male,25,OBC,Hindu,Delhi,6.5,Tier 1,1,OBC,Diploma
+Priya Mishra,Female,31,Upper Caste,Hindu,Maharashtra,1.5,Tier 3,1,Upper Caste,Master's
+Anita Dhobi,Female,43,SC,Hindu,Maharashtra,11.3,Tier 2,0,SC,Master's
+Sita Lodhi,Female,30,OBC,Hindu,Karnataka,4.9,Tier 2,0,OBC,PhD
+Kavita Joshi,Female,39,Upper Caste,Hindu,Maharashtra,6.3,Tier 3,0,Upper Caste,Bachelor's
+Mohan Pasi,Male,25,SC,Hindu,Maharashtra,7.6,Tier 3,0,SC,Diploma
+Joseph Masih,Male,24,N/A,Christian,Tamil Nadu,2.1,Tier 3,0,N/A,Bachelor's
+Amit Verma,Male,35,Upper Caste,Hindu,Delhi,2.2,Tier 2,1,Upper Caste,Bachelor's
+Geeta Jatav,Female,26,SC,Hindu,Uttar Pradesh,9.0,Tier 1,0,SC,Bachelor's
+Amit Verma,Male,44,Upper Caste,Hindu,Maharashtra,4.2,Tier 1,1,Upper Caste,PhD
+Ramesh Yadav,Male,43,OBC,Hindu,Karnataka,5.7,Tier 2,1,OBC,PhD
+Suresh Iyer,Male,23,Upper Caste,Hindu,Delhi,7.5,Tier 3,1,Upper Caste,Bachelor's
+Priya Mishra,Female,43,Upper Caste,Hindu,Maharashtra,1.2,Tier 2,1,Upper Caste,Diploma
+Amit Verma,Male,24,Upper Caste,Hindu,Karnataka,5.9,Tier 2,1,Upper Caste,Bachelor's
+Sunita Tiwari,Female,25,Upper Caste,Hindu,Delhi,4.7,Tier 2,1,Upper Caste,Master's
+Rajesh Sharma,Male,35,Upper Caste,Hindu,Karnataka,7.9,Tier 2,1,Upper Caste,Master's
+Suresh Chamar,Male,25,SC,Hindu,Tamil Nadu,2.7,Tier 3,0,SC,Diploma
+Geeta Jatav,Female,42,SC,Hindu,Karnataka,6.7,Tier 1,0,SC,PhD
+Priya Mishra,Female,30,Upper Caste,Hindu,Delhi,7.0,Tier 3,0,Upper Caste,Diploma
+Meera Pillai,Female,29,Upper Caste,Hindu,Tamil Nadu,7.7,Tier 2,1,Upper Caste,Bachelor's
+Zainab Malik,Female,35,N/A,Muslim,Uttar Pradesh,8.1,Tier 3,0,N/A,Master's
+Mohan Prajapati,Male,37,OBC,Hindu,Delhi,6.9,Tier 2,1,OBC,Bachelor's
+Arun Maurya,Male,40,OBC,Hindu,Uttar Pradesh,4.3,Tier 2,1,OBC,Diploma
+Rahul Sheikh,Male,44,N/A,Muslim,Tamil Nadu,8.2,Tier 2,0,N/A,Diploma
+Geeta Kurmi,Female,38,OBC,Hindu,Maharashtra,8.8,Tier 1,1,OBC,Bachelor's
+John Fernandez,Male,30,N/A,Christian,Delhi,7.8,Tier 1,0,N/A,Bachelor's
+Mary Thomas,Female,31,N/A,Christian,Uttar Pradesh,3.4,Tier 1,1,N/A,Diploma
+Meera Pillai,Female,30,Upper Caste,Hindu,Delhi,4.1,Tier 2,1,Upper Caste,Bachelor's
+Fatima Ansari,Female,23,N/A,Muslim,Karnataka,5.4,Tier 1,0,N/A,Diploma
+Fatima Ansari,Female,32,N/A,Muslim,Delhi,2.6,Tier 1,0,N/A,Diploma
+Geeta Jatav,Female,30,SC,Hindu,Karnataka,2.5,Tier 3,1,SC,Master's
+Amit Verma,Male,27,Upper Caste,Hindu,Uttar Pradesh,5.1,Tier 2,1,Upper Caste,Diploma
+Sunita Tiwari,Female,24,Upper Caste,Hindu,Delhi,2.8,Tier 2,0,Upper Caste,Diploma
+Mohammad Khan,Male,34,N/A,Muslim,Tamil Nadu,1.6,Tier 3,1,N/A,Diploma
+Rahul Pandey,Male,40,Upper Caste,Hindu,Uttar Pradesh,6.3,Tier 3,0,Upper Caste,PhD
+Priya Mishra,Female,38,Upper Caste,Hindu,Uttar Pradesh,2.9,Tier 2,1,Upper Caste,Bachelor's
+Rahul Pandey,Male,25,Upper Caste,Hindu,Uttar Pradesh,5.1,Tier 1,0,Upper Caste,PhD
+Suresh Chamar,Male,29,SC,Hindu,Delhi,3.9,Tier 3,0,SC,PhD
+Amit Verma,Male,31,Upper Caste,Hindu,Delhi,3.0,Tier 3,1,Upper Caste,Master's
+Geeta Kurmi,Female,23,OBC,Hindu,Maharashtra,7.9,Tier 3,1,OBC,Diploma
+John Fernandez,Male,43,N/A,Christian,Tamil Nadu,5.5,Tier 3,0,N/A,PhD
+Zainab Malik,Female,23,N/A,Muslim,Uttar Pradesh,4.1,Tier 3,0,N/A,Bachelor's
+Suresh Iyer,Male,42,Upper Caste,Hindu,Maharashtra,4.7,Tier 2,0,Upper Caste,Bachelor's
+Arun Maurya,Male,27,OBC,Hindu,Delhi,5.4,Tier 3,1,OBC,Master's
+Geeta Jatav,Female,39,SC,Hindu,Uttar Pradesh,5.9,Tier 3,1,SC,Master's
+Sunita Kushwaha,Female,40,OBC,Hindu,Karnataka,5.8,Tier 3,0,OBC,Bachelor's
+Suresh Iyer,Male,33,Upper Caste,Hindu,Tamil Nadu,2.0,Tier 1,1,Upper Caste,Master's
+Mohan Prajapati,Male,34,OBC,Hindu,Maharashtra,8.7,Tier 1,1,OBC,Master's
+Geeta Kurmi,Female,31,OBC,Hindu,Tamil Nadu,7.0,Tier 2,1,OBC,Diploma
+John Fernandez,Male,28,N/A,Christian,Maharashtra,11.5,Tier 2,1,N/A,Master's
+Rajesh Sharma,Male,25,Upper Caste,Hindu,Uttar Pradesh,6.4,Tier 3,0,Upper Caste,Diploma
+Sunita Kushwaha,Female,40,OBC,Hindu,Delhi,5.6,Tier 3,0,OBC,Diploma
+Geeta Kurmi,Female,31,OBC,Hindu,Maharashtra,5.5,Tier 2,0,OBC,Master's
+Joseph Masih,Male,30,N/A,Christian,Tamil Nadu,6.1,Tier 1,0,N/A,Master's
+Vikram Singh,Male,23,Upper Caste,Hindu,Maharashtra,8.3,Tier 2,1,Upper Caste,Bachelor's
+John Fernandez,Male,26,N/A,Christian,Delhi,0.3,Tier 3,0,N/A,PhD
+Geeta Kurmi,Female,38,OBC,Hindu,Uttar Pradesh,6.2,Tier 3,0,OBC,Bachelor's
+Anita Kulkarni,Female,35,Upper Caste,Hindu,Maharashtra,9.7,Tier 2,1,Upper Caste,Diploma
+Rahul Pandey,Male,29,Upper Caste,Hindu,Uttar Pradesh,14.6,Tier 3,1,Upper Caste,Diploma
+Priya Mishra,Female,26,Upper Caste,Hindu,Karnataka,6.6,Tier 3,1,Upper Caste,PhD
+Vikram Singh,Male,42,Upper Caste,Hindu,Maharashtra,8.7,Tier 1,1,Upper Caste,Master's
+Ramesh Valmiki,Male,22,SC,Hindu,Uttar Pradesh,7.4,Tier 1,0,SC,PhD
+Ramesh Yadav,Male,32,OBC,Hindu,Tamil Nadu,6.5,Tier 1,0,OBC,Bachelor's
+Rahul Sheikh,Male,41,N/A,Muslim,Tamil Nadu,10.7,Tier 3,0,N/A,Diploma
+Geeta Jatav,Female,40,SC,Hindu,Maharashtra,6.6,Tier 2,0,SC,PhD
+Fatima Ansari,Female,30,N/A,Muslim,Maharashtra,2.4,Tier 2,0,N/A,Master's
+Sita Lodhi,Female,29,OBC,Hindu,Maharashtra,4.3,Tier 1,0,OBC,Diploma
+Suresh Chamar,Male,34,SC,Hindu,Tamil Nadu,6.2,Tier 1,0,SC,Master's
+Zainab Malik,Female,38,N/A,Muslim,Karnataka,0.2,Tier 1,0,N/A,PhD
+Ramesh Valmiki,Male,35,SC,Hindu,Maharashtra,0.0,Tier 3,0,SC,Master's
+Fatima Ansari,Female,22,N/A,Muslim,Karnataka,7.3,Tier 1,0,N/A,Diploma
+Mohammad Khan,Male,34,N/A,Muslim,Maharashtra,5.9,Tier 2,1,N/A,Bachelor's
+Ramesh Yadav,Male,39,OBC,Hindu,Tamil Nadu,6.2,Tier 3,0,OBC,Diploma
+Suresh Chamar,Male,32,SC,Hindu,Delhi,4.5,Tier 2,1,SC,Diploma
+Sarah DSouza,Female,42,N/A,Christian,Uttar Pradesh,4.9,Tier 2,1,N/A,PhD
+Sarah DSouza,Female,26,N/A,Christian,Maharashtra,4.3,Tier 1,1,N/A,PhD
+Meera Pillai,Female,29,Upper Caste,Hindu,Delhi,4.0,Tier 1,1,Upper Caste,Diploma
+Ramesh Yadav,Male,30,OBC,Hindu,Maharashtra,4.2,Tier 1,0,OBC,Master's
+Amit Verma,Male,32,Upper Caste,Hindu,Tamil Nadu,5.7,Tier 3,0,Upper Caste,PhD
+Fatima Ansari,Female,22,N/A,Muslim,Uttar Pradesh,5.7,Tier 1,1,N/A,PhD
+Amit Verma,Male,24,Upper Caste,Hindu,Delhi,2.8,Tier 2,1,Upper Caste,Bachelor's
+Rahul Sheikh,Male,42,N/A,Muslim,Karnataka,5.5,Tier 3,0,N/A,Diploma
+Mohan Pasi,Male,27,SC,Hindu,Maharashtra,7.3,Tier 2,0,SC,PhD
+Sita Lodhi,Female,26,OBC,Hindu,Maharashtra,4.5,Tier 3,1,OBC,Bachelor's
+Zainab Malik,Female,29,N/A,Muslim,Maharashtra,0.9,Tier 2,1,N/A,Bachelor's
+Suresh Iyer,Male,31,Upper Caste,Hindu,Maharashtra,5.4,Tier 3,0,Upper Caste,PhD
+Kavita Joshi,Female,43,Upper Caste,Hindu,Karnataka,6.4,Tier 3,1,Upper Caste,Master's
+Priya Mishra,Female,30,Upper Caste,Hindu,Karnataka,4.7,Tier 2,0,Upper Caste,Diploma
+Mohan Pasi,Male,31,SC,Hindu,Uttar Pradesh,7.6,Tier 1,1,SC,PhD
+Mohammad Khan,Male,44,N/A,Muslim,Delhi,7.1,Tier 3,0,N/A,Diploma
+John Fernandez,Male,28,N/A,Christian,Karnataka,8.4,Tier 2,1,N/A,Bachelor's
+Fatima Ansari,Female,25,N/A,Muslim,Delhi,2.6,Tier 2,1,N/A,Master's
+Suresh Iyer,Male,25,Upper Caste,Hindu,Uttar Pradesh,5.0,Tier 2,1,Upper Caste,Master's
+Joseph Masih,Male,23,N/A,Christian,Karnataka,4.5,Tier 2,0,N/A,Master's
+Geeta Jatav,Female,42,SC,Hindu,Uttar Pradesh,6.3,Tier 2,0,SC,Master's
+Mohan Prajapati,Male,32,OBC,Hindu,Maharashtra,4.6,Tier 2,1,OBC,Diploma
+Suresh Iyer,Male,44,Upper Caste,Hindu,Maharashtra,4.6,Tier 3,1,Upper Caste,Diploma
+Vikram Singh,Male,29,Upper Caste,Hindu,Tamil Nadu,5.5,Tier 2,0,Upper Caste,Bachelor's
+Sunita Tiwari,Female,33,Upper Caste,Hindu,Maharashtra,10.3,Tier 2,1,Upper Caste,PhD
+Suresh Chamar,Male,41,SC,Hindu,Delhi,2.8,Tier 2,1,SC,Master's
+Ramesh Yadav,Male,43,OBC,Hindu,Maharashtra,2.7,Tier 2,0,OBC,PhD
+Mohan Prajapati,Male,39,OBC,Hindu,Uttar Pradesh,3.9,Tier 3,0,OBC,Master's
+Aisha Siddiqui,Female,26,N/A,Muslim,Delhi,6.1,Tier 1,0,N/A,Bachelor's
+John Fernandez,Male,34,N/A,Christian,Uttar Pradesh,2.9,Tier 3,1,N/A,Master's
+Fatima Ansari,Female,25,N/A,Muslim,Delhi,5.7,Tier 3,0,N/A,Master's
+Sita Lodhi,Female,35,OBC,Hindu,Uttar Pradesh,3.4,Tier 2,1,OBC,Bachelor's
+Anita Kulkarni,Female,37,Upper Caste,Hindu,Tamil Nadu,3.9,Tier 2,1,Upper Caste,PhD
+Ramesh Yadav,Male,36,OBC,Hindu,Tamil Nadu,4.3,Tier 3,0,OBC,Diploma
+Geeta Kurmi,Female,44,OBC,Hindu,Delhi,6.9,Tier 2,0,OBC,Diploma
+Mohan Prajapati,Male,38,OBC,Hindu,Delhi,2.3,Tier 3,0,OBC,PhD
+Aisha Siddiqui,Female,39,N/A,Muslim,Maharashtra,3.3,Tier 2,0,N/A,Diploma
+Fatima Ansari,Female,28,N/A,Muslim,Tamil Nadu,8.4,Tier 3,0,N/A,Master's
+Aisha Siddiqui,Female,34,N/A,Muslim,Tamil Nadu,3.8,Tier 2,0,N/A,Diploma
+Arun Maurya,Male,30,OBC,Hindu,Uttar Pradesh,1.0,Tier 1,0,OBC,Master's
+Rahul Sheikh,Male,29,N/A,Muslim,Maharashtra,5.1,Tier 2,0,N/A,Master's
+Kavita Joshi,Female,35,Upper Caste,Hindu,Tamil Nadu,3.6,Tier 2,1,Upper Caste,Diploma
+Abdul Qureshi,Male,28,N/A,Muslim,Delhi,7.6,Tier 2,0,N/A,Bachelor's
+Anita Kulkarni,Female,41,Upper Caste,Hindu,Uttar Pradesh,0.0,Tier 3,0,Upper Caste,PhD
+Zainab Malik,Female,36,N/A,Muslim,Karnataka,4.7,Tier 3,0,N/A,PhD
+Ramesh Valmiki,Male,31,SC,Hindu,Delhi,6.2,Tier 2,0,SC,Bachelor's
+Rahul Sheikh,Male,40,N/A,Muslim,Maharashtra,6.9,Tier 2,0,N/A,Bachelor's
+Vikram Singh,Male,41,Upper Caste,Hindu,Maharashtra,5.6,Tier 1,1,Upper Caste,Bachelor's
+Rahul Sheikh,Male,27,N/A,Muslim,Tamil Nadu,3.8,Tier 1,0,N/A,Diploma
+Geeta Jatav,Female,43,SC,Hindu,Maharashtra,4.7,Tier 3,0,SC,Diploma
+Suresh Iyer,Male,37,Upper Caste,Hindu,Uttar Pradesh,4.4,Tier 2,1,Upper Caste,Diploma
+Geeta Jatav,Female,33,SC,Hindu,Delhi,4.0,Tier 2,0,SC,Diploma
+Abdul Qureshi,Male,32,N/A,Muslim,Karnataka,0.7,Tier 3,0,N/A,Master's
+Suresh Iyer,Male,40,Upper Caste,Hindu,Karnataka,1.9,Tier 2,1,Upper Caste,Bachelor's
+Suresh Chamar,Male,26,SC,Hindu,Uttar Pradesh,3.0,Tier 3,0,SC,Master's
+Suresh Chamar,Male,32,SC,Hindu,Delhi,5.6,Tier 3,0,SC,PhD
+Sarah DSouza,Female,28,N/A,Christian,Tamil Nadu,6.1,Tier 3,1,N/A,Master's
+Geeta Jatav,Female,27,SC,Hindu,Uttar Pradesh,4.5,Tier 2,0,SC,Master's
+Meera Pillai,Female,23,Upper Caste,Hindu,Tamil Nadu,4.2,Tier 1,0,Upper Caste,Diploma
+Kavita Joshi,Female,40,Upper Caste,Hindu,Karnataka,6.8,Tier 3,1,Upper Caste,Bachelor's
+Sita Lodhi,Female,27,OBC,Hindu,Karnataka,0.0,Tier 2,0,OBC,PhD
+Priya Mishra,Female,44,Upper Caste,Hindu,Karnataka,1.9,Tier 3,1,Upper Caste,Bachelor's
+Arun Maurya,Male,27,OBC,Hindu,Tamil Nadu,8.4,Tier 3,1,OBC,Bachelor's
+Rajesh Sharma,Male,24,Upper Caste,Hindu,Maharashtra,2.3,Tier 1,0,Upper Caste,PhD
+Ramesh Yadav,Male,32,OBC,Hindu,Uttar Pradesh,4.1,Tier 3,0,OBC,Diploma
+Mohan Pasi,Male,43,SC,Hindu,Tamil Nadu,6.8,Tier 3,1,SC,Diploma
+Geeta Jatav,Female,29,SC,Hindu,Karnataka,6.3,Tier 3,1,SC,Bachelor's
+Mary Thomas,Female,33,N/A,Christian,Karnataka,4.8,Tier 3,0,N/A,Diploma
+Sunita Tiwari,Female,43,Upper Caste,Hindu,Delhi,8.8,Tier 1,0,Upper Caste,Diploma
+Mary Thomas,Female,36,N/A,Christian,Karnataka,4.7,Tier 2,1,N/A,Master's
+Vikram Singh,Male,24,Upper Caste,Hindu,Delhi,7.1,Tier 3,1,Upper Caste,Bachelor's
+Sunita Kushwaha,Female,31,OBC,Hindu,Tamil Nadu,6.3,Tier 1,1,OBC,Diploma
+Vikram Singh,Male,44,Upper Caste,Hindu,Delhi,3.4,Tier 2,0,Upper Caste,Bachelor's

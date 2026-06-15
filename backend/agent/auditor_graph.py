@@ -5,7 +5,7 @@ from typing import Any, TypedDict
 from sqlalchemy.orm import Session
 
 from agent.memory_store import RetrievedMemory, retrieve_memories
-from agent.prompts import ACT_PROMPT, ANALYZE_PROMPT, OBSERVE_PROMPT, REPORT_PROMPT
+from agent.prompts import ACT_PROMPT, ANALYZE_PROMPT, OBSERVE_PROMPT
 from models import Audit
 from utils import calculate_fairness_score
 
@@ -152,7 +152,7 @@ def run_auditor_agent(
 
     def report_node(state: AuditorState) -> AuditorState:
         rationale = state.get("rationale", "")
-        report_rationale = f"{REPORT_PROMPT.strip()} {rationale}"
+        report_rationale = rationale
         return {
             **state,
             "rationale": report_rationale,
