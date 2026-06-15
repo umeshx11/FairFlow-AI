@@ -1,4 +1,3 @@
-import os
 
 def create_governance_report(audit_data: dict, metrics: dict, share_with_email: str) -> dict:
     """

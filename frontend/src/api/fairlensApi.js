@@ -9,6 +9,7 @@ export const AUTH_STATE_EVENT = "fairlens:auth-state-changed";
 
 const defaultApiBaseUrl = "https://fairflow-ai-1056539416381.asia-south1.run.app";
 const apiBaseUrl = (process.env.REACT_APP_API_BASE_URL || defaultApiBaseUrl).replace(/\/$/, "");
+export const API_BASE_URL = apiBaseUrl;
 
 const api = axios.create({
   baseURL: apiBaseUrl
