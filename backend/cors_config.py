@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://fairflow-frontend.onrender.com",
     "https://eco-crow-439708-k8.web.app",
     "https://eco-crow-439708-k8.firebaseapp.com",
 )
