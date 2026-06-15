@@ -102,6 +102,8 @@ class MitigationResponse(BaseModel):
     fairness_score_before: float
     fairness_score_after: float
     mitigated_candidates: int
+    recommendation: str | None = None
+    gemini_action_plan: str | None = None
 
 
 class SyntheticPatchResponse(BaseModel):

@@ -1,4 +1,6 @@
 import { Dialog, Transition } from "@headlessui/react";
+import { GoogleAuthProvider, signInWithPopup, getAuth } from "firebase/auth";
+import { initializeApp, getApps } from "firebase/app";
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -9,7 +11,8 @@ import {
   LoaderCircle,
   Sparkles,
   TrendingUp,
-  XCircle
+  XCircle,
+  Info
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
@@ -27,7 +30,9 @@ import {
 import { useParams } from "react-router-dom";
 
 import {
+  API_BASE_URL,
   LAST_AUDIT_STORAGE_KEY,
+  TOKEN_STORAGE_KEY,
   downloadReport,
   getAudit,
   mitigateAudit,
@@ -159,6 +164,8 @@ function Mitigate() {
   const [runningSynthetic, setRunningSynthetic] = useState(false);
   const [deepInspection, setDeepInspection] = useState(null);
   const [loadingDeepInspection, setLoadingDeepInspection] = useState(false);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docsUrl, setDocsUrl] = useState(null);
   const domainConfig = audit?.domain_config || {};
   const subjectLabel = domainConfig.subject_label || "Candidate";
   const outcomeLabel = domainConfig.outcome_label || "Hired";
@@ -218,6 +225,12 @@ function Mitigate() {
     }
   };
 
+  useEffect(() => {
+    if (audit && !result && !running) {
+      handleRunMitigation();
+    }
+  }, [audit, result, running]);
+
   const handleDownloadReport = async () => {
     try {
       const blob = await downloadReport(auditId);
@@ -229,6 +242,98 @@ function Mitigate() {
       URL.revokeObjectURL(url);
     } catch (error) {
       return;
+    }
+  };
+
+  const handleGoogleDocs = async () => {
+    setDocsLoading(true);
+    // Clear cached token — force fresh scope consent
+    localStorage.removeItem("google_access_token");
+
+    try {
+      // Step 1: Get the stored Google access token
+      let googleToken = localStorage.getItem("google_access_token");
+
+      // Step 2: If no token stored, prompt Google sign-in NOW
+      if (!googleToken) {
+
+        const firebaseConfig = {
+          apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+          authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+          projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+        };
+
+        // Don't re-initialize if already done
+        const firebaseApp = getApps().length 
+          ? getApps()[0] 
+          : initializeApp(firebaseConfig);
+        const auth = getAuth(firebaseApp);
+
+        const provider = new GoogleAuthProvider();
+        // Request Drive + Docs scopes
+        provider.addScope("https://www.googleapis.com/auth/documents");
+        provider.addScope("https://www.googleapis.com/auth/drive.file");
+        provider.setCustomParameters({
+          prompt: "consent"
+        });
+
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        console.log("TOKEN:", credential?.accessToken);
+        console.log("SCOPES:", result.user);
+        googleToken = credential.accessToken;
+
+        // Cache it so next export is instant
+        localStorage.setItem("google_access_token", googleToken);
+      }
+
+      // Step 3: Call backend with the user's own Google token
+      const fairlensToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+
+      const response = await fetch(
+        `${API_BASE_URL}/audit/${auditId}/google-doc-report`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${fairlensToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ 
+            google_access_token: googleToken 
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        // Token may have expired — clear and let user retry
+        if (response.status === 401) {
+          localStorage.removeItem("google_access_token");
+          throw new Error("Google session expired. Click Export again to re-authorise.");
+        }
+        throw new Error("Export failed");
+      }
+
+      const data = await response.json();
+      setDocsUrl(data.doc_url);
+      window.open(data.doc_url, "_blank");
+
+    } catch (err) {
+      toast.error(err.message || "Export failed — downloading PDF instead.");
+      // Fallback to PDF
+      try {
+        const blob = await downloadReport(auditId);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `fairflow_report.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch {
+        toast.error("PDF download also failed.");
+      }
+    } finally {
+      setDocsLoading(false);
     }
   };
 
@@ -317,6 +422,9 @@ function Mitigate() {
     if (!result) {
       return null;
     }
+    if (result.recommendation) {
+      return result.recommendation;
+    }
     const recommendationText = (agentDecision?.recommendation || "").toLowerCase();
     if (recommendationText.includes("equalized odds")) {
       return "Equalized Odds";
@@ -385,11 +493,11 @@ function Mitigate() {
       </div>
 
       {!result && (
-        <div className="section-card text-center">
-          <h2 className="text-2xl font-bold text-slate-900">Mitigation analysis has not been run yet</h2>
+        <div className="section-card flex min-h-[300px] flex-col items-center justify-center text-center">
+          <Spinner className="h-8 w-8 text-navy" />
+          <h2 className="mt-5 text-2xl font-bold text-slate-900">Computing 3 strategies...</h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-            Start the mitigation workflow to compute before-and-after fairness metrics, update
-            {subjectLabel.toLowerCase()} ranking decisions, and enable PDF report export.
+            Applying Reweighing, Prejudice Remover, and Equalized Odds to calculate optimal fairness lift...
           </p>
         </div>
       )}
@@ -561,9 +669,16 @@ function Mitigate() {
                   >
                     {mitigationSummary.badge}
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 group relative">
                     <TrendingUp className="h-3.5 w-3.5 text-amber-dark" />
                     Fairness score {result.fairness_score_before}% → {result.fairness_score_after}%
+                    <div className="relative flex items-center">
+                      <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-help" />
+                      <div className="absolute bottom-full left-1/2 mb-2 w-64 -translate-x-1/2 rounded-xl bg-slate-900 p-3 text-xs text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 pointer-events-none">
+                        This shows FairFlow audits mitigation quality, not just bias.
+                        <div className="absolute top-full left-1/2 -mt-1 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
+                      </div>
+                    </div>
                   </span>
                   <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                     {passingMetrics.length} of {Object.keys(metricLabels).length} checks in range
@@ -661,6 +776,43 @@ function Mitigate() {
                 </div>
               </div>
 
+              {result?.gemini_action_plan && (
+                <div className="mt-6 rounded-xl border border-amber-200 bg-white p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xl">✨</span>
+                    <div>
+                      <p className="text-xs font-semibold text-amber-600 tracking-widest uppercase">
+                        AI Compliance Officer
+                      </p>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        Gemini Executive Action Plan
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {result.gemini_action_plan
+                      .split('\n')
+                      .filter(line => line.trim().startsWith('•'))
+                      .map((bullet, i) => (
+                        <div key={i} className="flex gap-3 items-start">
+                          <span className="text-amber-500 font-bold text-lg mt-0.5">
+                            {i + 1}
+                          </span>
+                          <p className="text-sm text-slate-700 leading-relaxed">
+                            {bullet.replace('•', '').trim()}
+                          </p>
+                        </div>
+                      ))
+                    }
+                  </div>
+                  <div className="mt-4 rounded-lg bg-slate-900 p-3">
+                    <p className="text-xs text-slate-400 text-center">
+                      Generated by Gemini • Based on actual mitigation metrics
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   type="button"
@@ -679,6 +831,39 @@ function Mitigate() {
                   <Download className="h-4 w-4" />
                   Download PDF Report
                 </button>
+                <div className="flex flex-col items-start gap-1">
+                  <button
+                    onClick={handleGoogleDocs}
+                    disabled={docsLoading}
+                    className="flex items-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {docsLoading ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Creating Google Doc...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                          <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                        </svg>
+                        Export to Google Docs
+                      </>
+                    )}
+                  </button>
+
+                  {docsUrl && (
+                    <a
+                      href={docsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 underline mt-1 block px-2"
+                    >
+                      ✓ Report created — Click to open in Google Docs
+                    </a>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowModal(true)}

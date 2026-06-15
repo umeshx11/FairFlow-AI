@@ -49,6 +49,9 @@ function FairnessReportCard({ metrics }) {
             Fairness Snapshot
           </p>
           <h3 className="mt-2 text-2xl font-bold text-slate-900">Bias metric assessment</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            WASM precheck score uses browser-side metrics. Full server analysis includes additional dimensions.
+          </p>
         </div>
         <div className="inline-flex items-center gap-3 self-start rounded-full border border-slate-200 bg-slate-50 px-4 py-2">
           <Scale className="h-4 w-4 text-amber-dark" />

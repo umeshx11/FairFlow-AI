@@ -7,7 +7,8 @@ import {
   Shield,
   Upload,
   Users,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -50,6 +51,11 @@ function ProtectedLayout() {
         label: "Governance",
         to: latestAuditId ? `/governance/${latestAuditId}` : "/governance",
         icon: Scale
+      },
+      {
+        label: "JD Bias Checker",
+        to: "/jd-audit",
+        icon: FileText
       }
     ],
     [latestAuditId]
@@ -110,6 +116,21 @@ function ProtectedLayout() {
 
   return (
     <div className="min-h-screen bg-slate-100">
+      {localStorage.getItem("demo_mode") === "true" && (
+      <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-white text-center py-2 text-xs font-semibold tracking-wide">
+          ⚡ DEMO MODE — Viewing sample hiring bias audit • 
+          <button
+            onClick={() => {
+              localStorage.removeItem("demo_mode");
+              clearSession();
+              window.location.href = "/login";
+            }}
+            className="ml-2 underline hover:no-underline"
+          >
+            Create free account →
+          </button>
+        </div>
+      )}
       <Transition.Root show={mobileOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50 lg:hidden" onClose={setMobileOpen}>
           <Transition.Child
@@ -175,7 +196,6 @@ function ProtectedLayout() {
                   </h2>
                 </div>
               </div>
-
             </div>
           </header>
 
@@ -187,10 +207,7 @@ function ProtectedLayout() {
 
           <footer className="border-t border-slate-200 bg-white/90 px-4 py-4 sm:px-6 lg:px-8">
             <div className="mx-auto flex max-w-7xl flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-              <p>FairFlow AI • Glass Box Fairness Governance</p>
-              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 font-semibold uppercase tracking-[0.14em] text-indigo-700">
-                Powered by IndiCASA
-              </div>
+              <p>FairFlow AI • Reducing AI Discrimination in Hiring, Lending & Healthcare • SDG 10.3</p>
             </div>
           </footer>
         </div>

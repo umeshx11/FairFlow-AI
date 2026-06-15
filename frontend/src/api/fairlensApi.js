@@ -131,6 +131,24 @@ export const uploadMultimodalAudit = async (formData) =>
     "Multimodal upload failed."
   );
 
+export const extractCandidateFromResume = async (formData, options = {}) =>
+  performRequest(
+    () =>
+      api.post("/api/v1/extract-candidate", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      }),
+    "Resume extraction failed.",
+    options
+  );
+
+export const uploadResumesAudit = async (candidates) =>
+  performRequest(
+    () => api.post("/api/v1/upload-resumes-audit", { candidates }),
+    "Resume audit failed."
+  );
+
 export const getAudit = async (id, options = {}) =>
   performRequest(() => api.get(`/audit/${id}`), "Could not load audit.", options);
 
@@ -187,5 +205,8 @@ export const downloadReport = async (auditId) => {
     throw error;
   }
 };
+
+export const deleteAudit = async (auditId) =>
+  performRequest(() => api.delete(`/audit/${auditId}`), "Could not delete audit.");
 
 export default api;

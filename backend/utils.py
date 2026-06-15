@@ -71,6 +71,8 @@ def to_serializable(value: Any) -> Any:
         return _safe_float(value)
     if isinstance(value, (np.bool_,)):
         return bool(value)
+    if type(value).__module__ == "numpy" and "bool" in type(value).__name__.lower():
+        return bool(value)
     return value
 
 

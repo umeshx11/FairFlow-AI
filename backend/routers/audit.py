@@ -3,6 +3,7 @@ import os
 import google.generativeai as genai
 from typing import Any
 from uuid import UUID
+from pydantic import BaseModel
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -521,7 +522,7 @@ Keep total response under 180 words."""
             if "Bottom line:" in full_text:
                 parts = full_text.split("Bottom line:")
                 summary = parts[0].strip()
-                bottom_line = "Bottom line:" + parts[1].strip()
+                bottom_line = "Bottom line: " + parts[1].strip()
             
             return {
                 "summary": summary,
@@ -657,9 +658,13 @@ async def upload_multimodal_audit(
 
     return analysis
 
+class GoogleDocRequest(BaseModel):
+    google_access_token: str
+
 @router.post("/{audit_id}/google-doc-report")
 async def generate_google_doc_report(
     audit_id: UUID,
+    request: GoogleDocRequest,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -708,19 +713,21 @@ async def generate_google_doc_report(
     result = create_governance_report(
         audit_data=audit_data,
         metrics=metrics,
+        google_access_token=request.google_access_token,
         share_with_email=os.getenv("GOOGLE_DOCS_SHARE_EMAIL") or current_user.email,
     )
     
-    if not result["success"]:
+    if not result.get("success"):
         raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "google_docs_unavailable",
-                "message": result.get("error") or "Google Docs integration is not configured on this server.",
-            }
+            status_code=400,
+            detail=result.get("message", "Google Docs export failed")
         )
     
-    return result
+    return {
+        "doc_url": result["doc_url"],
+        "doc_id": result["doc_id"],
+        "title": result["title"],
+    }
 
 
 # ── Gap 3: GDPR Right-to-Deletion ─────────────────────────────────────────────────────

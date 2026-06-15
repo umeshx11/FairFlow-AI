@@ -11,6 +11,7 @@ import LoginPage from "./pages/LoginPage";
 import Mitigate from "./pages/Mitigate";
 import Governance from "./pages/Governance";
 import RegisterPage from "./pages/RegisterPage";
+import JobDescriptionAudit from "./pages/JobDescriptionAudit";
 
 const getStoredToken = () =>
   typeof window !== "undefined" ? localStorage.getItem(TOKEN_STORAGE_KEY) : null;
@@ -55,6 +56,7 @@ function App() {
           <Route path="/mitigate/:auditId" element={<Mitigate />} />
           <Route path="/governance" element={<Governance />} />
           <Route path="/governance/:auditId" element={<Governance />} />
+          <Route path="/jd-audit" element={<JobDescriptionAudit />} />
         </Route>
       </Routes>
     </>
