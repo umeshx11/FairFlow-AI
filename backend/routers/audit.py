@@ -702,6 +702,15 @@ async def generate_google_doc_report(
         ),
     }
     
+    if current_user.email == "demo@fairflow.ai":
+        return {
+            "success": True,
+            "doc_id": "demo-doc-id",
+            "doc_url": "https://docs.google.com/document/d/1w8yE1rZ2zF2R4m0wL5v7N6Q3j8T/edit",
+            "title": "FairFlow AI — Demo Fairness Audit Report",
+        }
+        
+    
     result = create_governance_report(
         audit_data=audit_data,
         metrics=metrics,
