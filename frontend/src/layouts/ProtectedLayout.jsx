@@ -175,9 +175,7 @@ function ProtectedLayout() {
                   </h2>
                 </div>
               </div>
-              <div className="hidden rounded-full border border-amber/30 bg-amber/10 px-4 py-2 text-sm font-medium text-amber-dark sm:block">
-                Live on localhost:3000
-              </div>
+
             </div>
           </header>
 
