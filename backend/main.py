@@ -23,6 +23,7 @@ from routers.domain import router as domain_router
 from routers.extract import router as extract_router
 from routers.demo import router as demo_router
 from routers.jd_audit import router as jd_router
+from routers.resume_audit import router as resume_audit_router
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,7 @@ app.include_router(inspection_router, tags=["inspection"])
 app.include_router(governance_router, tags=["governance"])
 app.include_router(domain_router, prefix="/domain", tags=["domain"])
 app.include_router(extract_router, tags=["extraction"])
+app.include_router(resume_audit_router, tags=["resume-audit"])
 app.include_router(demo_router, prefix="/demo", tags=["demo"])
 app.include_router(
     jd_router, 
