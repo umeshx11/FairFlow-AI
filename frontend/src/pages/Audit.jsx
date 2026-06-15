@@ -7,7 +7,7 @@ import { API_BASE_URL, LAST_AUDIT_STORAGE_KEY, TOKEN_STORAGE_KEY, getAuditTempla
 import CSVUploader from "../components/CSVUploader";
 import DomainSelector from "../components/DomainSelector";
 import FairnessReportCard from "../components/FairnessReportCard";
-import GeminiSummaryCard from "../components/GeminiSummaryCard";
+
 import LocalWasmPrecheckCard from "../components/LocalWasmPrecheckCard";
 import ResumeImageUploader from "../components/ResumeImageUploader";
 import { buildEthosInputFromCsvText } from "../wasm/csvAuditInput";
