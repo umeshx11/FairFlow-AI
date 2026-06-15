@@ -27,7 +27,7 @@ export default function JobDescriptionAudit() {
         localStorage.getItem("access_token");
         
       const response = await fetch(
-        `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/jd-audit/analyze`,
+        "http://localhost:8000/jd-audit/analyze",
         {
           method: "POST",
           headers: {

@@ -16,7 +16,7 @@ export default function GeminiSummaryCard({ auditId }) {
       sessionStorage.getItem("token") || 
       localStorage.getItem("fairlens_token");
 
-    fetch(`${process.env.REACT_APP_API_URL || "http://localhost:8000"}/audit/${auditId}/gemini-summary`, {
+    fetch(`http://localhost:8000/audit/${auditId}/gemini-summary`, {
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json"
