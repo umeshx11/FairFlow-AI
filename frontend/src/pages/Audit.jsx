@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-import { LAST_AUDIT_STORAGE_KEY, getAuditTemplates, uploadAudit } from "../api/fairlensApi";
+import { API_BASE_URL, LAST_AUDIT_STORAGE_KEY, TOKEN_STORAGE_KEY, getAuditTemplates, uploadAudit } from "../api/fairlensApi";
 import CSVUploader from "../components/CSVUploader";
 import DomainSelector from "../components/DomainSelector";
 import FairnessReportCard from "../components/FairnessReportCard";
@@ -61,13 +61,10 @@ function Audit() {
     
     setGeminiLoading(true);
     
-    const token = report?.demo_token || 
-      localStorage.getItem("token") || 
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("fairlens_token");
+    const token = report?.demo_token || localStorage.getItem(TOKEN_STORAGE_KEY);
     
     fetch(
-      `${process.env.REACT_APP_API_URL || "http://localhost:8000"}/audit/${auditId}/gemini-summary`,
+      `${API_BASE_URL}/audit/${auditId}/gemini-summary`,
       {
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -551,7 +548,7 @@ function Audit() {
                 </p>
                 <h3 className="text-lg font-bold text-slate-900">
                   Gemini Analysis
-                  {geminiData?.source === "gemini-1.5-flash" && (
+                  {geminiData?.source && geminiData.source !== "fallback" && (
                     <span className="ml-2 text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
                       Powered by Gemini
                     </span>

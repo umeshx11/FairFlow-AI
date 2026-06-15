@@ -1,11 +1,10 @@
 from __future__ import annotations
-import os
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 
 SCOPES = [
@@ -14,49 +13,26 @@ SCOPES = [
 ]
 
 
-def get_google_services():
-    sa_path = os.getenv(
-        "GOOGLE_SERVICE_ACCOUNT_JSON",
-        "google_service_account.json"
-    )
-    
-    if not Path(sa_path).exists():
-        # Try alternate paths
-        alt_paths = [
-            Path("google_service_account.json"),
-            Path("/app/google_service_account.json"),
-            Path(__file__).parent / "google_service_account.json",
-        ]
-        for p in alt_paths:
-            if p.exists():
-                sa_path = str(p)
-                break
-        else:
-            print(f"Service account not found at {sa_path}")
-            return None, None
-    
+def get_google_services_from_user_token(access_token: str):
+    """
+    Build Docs + Drive clients using the USER's OAuth token.
+    The doc is created in THEIR Drive, not ours.
+    """
     try:
-        credentials = (
-            service_account.Credentials
-            .from_service_account_file(
-                sa_path,
-                scopes=SCOPES
-            )
-        )
+        credentials = Credentials(token=access_token)
         docs_service = build(
-            "docs", "v1", 
+            "docs", "v1",
             credentials=credentials,
             cache_discovery=False
         )
         drive_service = build(
-            "drive", "v3", 
+            "drive", "v3",
             credentials=credentials,
             cache_discovery=False
         )
-        print(f"Google services initialized from {sa_path}")
         return docs_service, drive_service
     except Exception as e:
-        print(f"Google auth error: {e}")
+        print(f"Failed to build Google services from user token: {e}")
         return None, None
 
 
@@ -64,51 +40,48 @@ def create_governance_report(
     audit_data: dict[str, Any],
     metrics: dict[str, Any],
     gemini_summary: str | None = None,
+    google_access_token: str | None = None,   # <-- NEW parameter
     share_with_email: str | None = None,
 ) -> dict[str, str]:
-    print("Attempting Google Docs creation...")
-    print(f"SA path env: {os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')}")
-    print(f"DOCS_ENABLED: {os.getenv('GOOGLE_DOCS_ENABLED')}")
-    
-    docs_service, drive_service = (
-        get_google_services()
+
+    # Use user token — never service account
+    if not google_access_token:
+        return {
+            "success": False,
+            "error": "google_token_required",
+            "message": "Google authorisation required to export."
+        }
+
+    docs_service, drive_service = get_google_services_from_user_token(
+        google_access_token
     )
-    
+
     if not docs_service:
         return {
             "success": False,
-            "error": "Google Docs not configured",
+            "error": "google_auth_failed",
+            "message": "Could not connect to Google. Token may have expired."
         }
-    
-    dataset = audit_data.get(
-        "dataset_name", "Unknown Dataset"
-    )
+
+    dataset = audit_data.get("dataset_name", "Unknown Dataset")
     domain = audit_data.get("domain", "hiring")
     score = metrics.get("fairness_score", 0)
     di = metrics.get("disparate_impact", 0)
-    date = datetime.now().strftime(
-        "%B %d, %Y"
-    )
-    
-    title = (
-        f"FairFlow AI — {domain.title()} "
-        f"Fairness Audit Report — {date}"
-    )
-    
-    # Create the document
+    date = datetime.now().strftime("%B %d, %Y")
+    title = f"FairFlow AI — {domain.title()} Fairness Audit Report — {date}"
+
     try:
         doc = docs_service.documents().create(
             body={"title": title}
         ).execute()
         doc_id = doc["documentId"]
-        
-        # Build document content
+
         risk_level = (
-            "HIGH RISK" if di < 0.6 
-            else "MEDIUM RISK" if di < 0.8 
+            "HIGH RISK" if di < 0.6
+            else "MEDIUM RISK" if di < 0.8
             else "LOW RISK"
         )
-        
+
         content = f"""FairFlow AI — Fairness Audit Report
 Generated: {date}
 Dataset: {dataset}
@@ -135,10 +108,10 @@ AI COMPLIANCE ANALYSIS
 
 RECOMMENDED ACTIONS
 
-1. Review all candidates flagged with bias status in FairFlow AI candidate explorer.
-2. Apply the recommended mitigation strategy before production deployment.  
+1. Review all flagged candidates in FairFlow AI candidate explorer.
+2. Apply the recommended mitigation strategy before production deployment.
 3. Schedule re-audit after any changes to the decision pipeline.
-4. Share this report with your legal and compliance team for review.
+4. Share this report with your legal and compliance team.
 
 AUDIT CERTIFICATE
 
@@ -149,65 +122,24 @@ Audit timestamp: {datetime.now().isoformat()}
 ---
 FairFlow AI • Reducing AI Discrimination in Hiring, Lending & Healthcare
 """
-        
-        # Insert content into document
-        requests = [
-            {
-                "insertText": {
-                    "location": {"index": 1},
-                    "text": content,
-                }
-            }
-        ]
-        
+
         docs_service.documents().batchUpdate(
             documentId=doc_id,
-            body={"requests": requests}
+            body={"requests": [{"insertText": {"location": {"index": 1}, "text": content}}]}
         ).execute()
-        
-        # Make document publicly viewable
-        # (avoids domain restriction issues)
-        try:
-            drive_service.permissions().create(
-                fileId=doc_id,
-                body={
-                    "type": "anyone",
-                    "role": "reader",
-                },
-            ).execute()
-            
-            # Also try to share with specific email
-            if share_with_email:
-                try:
-                    drive_service.permissions().create(
-                        fileId=doc_id,
-                        body={
-                            "type": "user",
-                            "role": "writer",
-                            "emailAddress": share_with_email,
-                        },
-                        sendNotificationEmail=False,
-                    ).execute()
-                except Exception:
-                    pass  # Public link still works
-                    
-        except Exception as e:
-            print(f"Sharing error: {e}")
-            # Document still created, just not shared
-        
-        doc_url = (
-            f"https://docs.google.com/document/d/"
-            f"{doc_id}/edit"
-        )
-        
+
+        # No need to set "anyone can view" — it's in the user's own Drive
+        # They can share it however they choose
+
         return {
             "success": True,
             "doc_id": doc_id,
-            "doc_url": doc_url,
+            "doc_url": f"https://docs.google.com/document/d/{doc_id}/edit",
             "title": title,
         }
+
+    except HttpError as exc:
+        print(f"HttpError details: {exc.content}")
+        return {"success": False, "error": str(exc)}
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-        }
+        return {"success": False, "error": str(e)}

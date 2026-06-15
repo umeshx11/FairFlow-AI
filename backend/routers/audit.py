@@ -3,6 +3,7 @@ import os
 import google.generativeai as genai
 from typing import Any
 from uuid import UUID
+from pydantic import BaseModel
 
 import pandas as pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -19,6 +20,7 @@ from domain_config import (
     parse_domain_config_payload,
     validate_required_columns,
 )
+from gemini_config import get_gemini_model_name, has_configured_gemini_key
 from ml.bias_detector import run_bias_detection
 from ml.counterfactual import generate_counterfactual
 from ml.cultural_audit import run_cultural_bias_scan
@@ -456,11 +458,12 @@ async def get_gemini_summary(
     
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     
-    if gemini_api_key and gemini_api_key != "your-actual-key-here":
+    gemini_model_name = get_gemini_model_name()
+    if has_configured_gemini_key():
         try:
             genai.configure(api_key=gemini_api_key)
             model = genai.GenerativeModel(
-                "gemini-1.5-flash"
+                gemini_model_name
             )
             
             prompt = f"""You are a fairness compliance 
@@ -516,7 +519,7 @@ Keep total response under 180 words."""
             if "Bottom line:" in full_text:
                 parts = full_text.split("Bottom line:")
                 summary = parts[0].strip()
-                bottom_line = "Bottom line:" + parts[1].strip()
+                bottom_line = "Bottom line: " + parts[1].strip()
             
             return {
                 "summary": summary,
@@ -525,7 +528,7 @@ Keep total response under 180 words."""
                 "disparate_impact": di,
                 "fairness_score": score,
                 "domain": domain,
-                "source": "gemini-1.5-flash"
+                "source": gemini_model_name
             }
             
         except Exception as e:
@@ -652,9 +655,13 @@ async def upload_multimodal_audit(
 
     return analysis
 
+class GoogleDocRequest(BaseModel):
+    google_access_token: str
+
 @router.post("/{audit_id}/google-doc-report")
 async def generate_google_doc_report(
     audit_id: UUID,
+    request: GoogleDocRequest,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -703,22 +710,21 @@ async def generate_google_doc_report(
     result = create_governance_report(
         audit_data=audit_data,
         metrics=metrics,
-        share_with_email=current_user.email,
+        google_access_token=request.google_access_token,
+        share_with_email=os.getenv("GOOGLE_DOCS_SHARE_EMAIL") or current_user.email,
     )
     
-    if not result["success"]:
+    if not result.get("success"):
         raise HTTPException(
-            status_code=503,
-            detail={
-                "error": "google_docs_unavailable",
-                "message": (
-                    "Google Docs integration is not "
-                    "configured on this server."
-                ),
-            }
+            status_code=400,
+            detail=result.get("message", "Google Docs export failed")
         )
     
-    return result
+    return {
+        "doc_url": result["doc_url"],
+        "doc_id": result["doc_id"],
+        "title": result["title"],
+    }
 
 
 # ── Gap 3: GDPR Right-to-Deletion ─────────────────────────────────────────────────────

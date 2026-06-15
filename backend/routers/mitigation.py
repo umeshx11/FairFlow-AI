@@ -20,6 +20,7 @@ from privacy import compute_report_hash, sanitize_report_aggregates, sanitize_me
 from routers.auth import get_current_user
 from schemas import CertificateResponse, MitigationResponse, SyntheticPatchResponse
 from utils import calculate_fairness_score, compute_group_hire_rates, metric_payload, rebuild_audit_rows
+from gemini_config import get_gemini_model_name, has_configured_gemini_key
 
 
 router = APIRouter()
@@ -177,10 +178,10 @@ def mitigate_audit(
     gemini_action_plan = None
     gemini_api_key = os.getenv("GEMINI_API_KEY")
 
-    if gemini_api_key:
+    if has_configured_gemini_key():
         try:
             genai.configure(api_key=gemini_api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel(get_gemini_model_name())
             
             prompt = f"""You are an AI Compliance Officer reviewing mitigation results for a {domain} decision system.
 
@@ -211,6 +212,20 @@ No headers. No markdown. Just 3 bullets."""
         except Exception as e:
             print(f"Gemini action plan error: {e}")
             gemini_action_plan = None
+            
+    if not gemini_action_plan:
+        if float(mitigated_di) >= 0.8:
+            gemini_action_plan = (
+                f"• Mitigation improved Disparate Impact from {float(original_di):.2f} to {float(mitigated_di):.2f}, reaching a fairness score of {float(mitigated_score):.0f}/100.\n"
+                f"• The model is now operating within safe legal parameters and meets the 0.80 fairness threshold.\n"
+                f"• Export the stakeholder-ready PDF report below to document compliance before deployment."
+            )
+        else:
+            gemini_action_plan = (
+                f"• Mitigation adjusted outcomes but Disparate Impact is {float(mitigated_di):.2f}, which is below the 0.80 threshold.\n"
+                f"• The model still carries compliance risks and requires further manual review before deployment.\n"
+                f"• Investigate the protected attributes manually or consider collecting more representative training data."
+            )
 
     return {
         "audit_id": audit.id,
