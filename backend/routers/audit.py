@@ -518,7 +518,7 @@ Keep total response under 180 words."""
             if "Bottom line:" in full_text:
                 parts = full_text.split("Bottom line:")
                 summary = parts[0].strip()
-                bottom_line = "Bottom line:" + parts[1].strip()
+                bottom_line = "Bottom line: " + parts[1].strip()
             
             return {
                 "summary": summary,
@@ -701,15 +701,6 @@ async def generate_google_doc_report(
             if audit.domain_config else "hiring"
         ),
     }
-    
-    if current_user.email == "demo@fairflow.ai":
-        return {
-            "success": True,
-            "doc_id": "demo-doc-id",
-            "doc_url": "https://docs.google.com/document/d/1w8yE1rZ2zF2R4m0wL5v7N6Q3j8T/edit",
-            "title": "FairFlow AI — Demo Fairness Audit Report",
-        }
-        
     
     result = create_governance_report(
         audit_data=audit_data,
