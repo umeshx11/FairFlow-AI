@@ -261,13 +261,16 @@ async def upload_audit(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    from ml.india_bias_detector import run_india_bias_scan
-    india_scan = run_india_bias_scan(
-        canonical_df,
-        decision_column=parsed_config.outcome_column if parsed_config.outcome_column in canonical_df.columns else "hired",
-        positive_value=parsed_config.outcome_positive_value,
-        name_column="name",
-    )
+    try:
+        from ml.india_bias_detector import run_india_bias_scan
+        india_scan = run_india_bias_scan(
+            canonical_df,
+            decision_column=parsed_config.outcome_column if parsed_config.outcome_column in canonical_df.columns else "hired",
+            positive_value=parsed_config.outcome_positive_value,
+            name_column="name",
+        )
+    except ImportError:
+        india_scan = {"error": "India bias detector module not found", "detected_castes": []}
 
     metrics = metric_payload(detection_result)
     parsed_config_payload = parsed_config.model_dump(mode="json")
